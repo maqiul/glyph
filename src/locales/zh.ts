@@ -91,7 +91,7 @@ export default {
     copied: '已复制',
     chars: '{n} 字符',
     lines: '{n} 行',
-    hint: '选择一张图片（png/jpg/bmp/webp），本地 PP-OCR 离线识别其中的文字。首次使用会自动下载模型（约 21MB）。',
+    hint: '选择图片，本地 PP-OCR 离线识别（首次自动下载模型）',
     failed: '识别失败：{msg}',
     engine: '识别引擎',
     engineLocal: '本地',
@@ -99,6 +99,6 @@ export default {
     provider: '云端服务商',
     apiKey: 'API Key',
     secretKey: 'Secret Key',
-    cloudNote: '云端识别需填服务商密钥（仅存本机）。当前已接百度，阿里/腾讯即将支持。',
+    cloudNote: '选择图片，云端识别（需填服务商密钥）',
   },
 }

@@ -91,7 +91,7 @@ export default {
     copied: 'Copied',
     chars: '{n} chars',
     lines: '{n} lines',
-    hint: 'Pick an image (png/jpg/bmp/webp); local PP-OCR recognizes text offline. First use auto-downloads the model (~21MB).',
+    hint: 'Pick an image; local PP-OCR offline recognition (model auto-downloads on first use)',
     failed: 'Recognition failed: {msg}',
     engine: 'Engine',
     engineLocal: 'Local',
@@ -99,6 +99,6 @@ export default {
     provider: 'Cloud provider',
     apiKey: 'API Key',
     secretKey: 'Secret Key',
-    cloudNote: 'Cloud recognition needs provider keys (stored locally only). Baidu supported now; Ali/Tencent coming.',
+    cloudNote: 'Pick an image; cloud recognition (provider key required)',
   },
 }
