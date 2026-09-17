@@ -6,12 +6,13 @@
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Serialize;
+use std::sync::Mutex;
 use xcap::Monitor;
 
 use crate::error::GlyphError;
 
 /// 单个显示器的捕获结果
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CaptureResult {
     pub index: usize,
     pub name: String,
@@ -24,7 +25,11 @@ pub struct CaptureResult {
     pub png_base64: String,
 }
 
-/// 捕获所有显示器。
+/// 最近一次捕获缓存。overlay 窗口读取它，而不是自己再截一次
+/// （否则 overlay 会把"自己盖在屏幕上"的白底截进去，导致白屏）。
+static LAST_CAPTURE: Mutex<Option<Vec<CaptureResult>>> = Mutex::new(None);
+
+/// 捕获所有显示器，并缓存结果供 overlay 读取。
 pub fn capture_all() -> Result<Vec<CaptureResult>, GlyphError> {
     let monitors = Monitor::all().map_err(|e| GlyphError::Internal(format!("monitor enum: {e}")))?;
     let mut out = Vec::new();
@@ -53,5 +58,17 @@ pub fn capture_all() -> Result<Vec<CaptureResult>, GlyphError> {
         });
     }
 
+    if let Ok(mut g) = LAST_CAPTURE.lock() {
+        *g = Some(out.clone());
+    }
     Ok(out)
+}
+
+/// 读取最近一次捕获的缓存（overlay 用）。
+pub fn cached() -> Result<Vec<CaptureResult>, GlyphError> {
+    LAST_CAPTURE
+        .lock()
+        .map_err(|_| GlyphError::Internal("capture cache lock poisoned".into()))?
+        .clone()
+        .ok_or_else(|| GlyphError::NotFound("无缓存截图，请先捕获".into()))
 }

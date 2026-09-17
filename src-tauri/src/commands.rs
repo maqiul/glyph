@@ -89,6 +89,12 @@ pub async fn capture_screens() -> Result<Vec<crate::screenshot::CaptureResult>, 
         .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
 }
 
+/// 读取最近一次捕获的缓存（overlay 用，避免 overlay 自我截屏导致白屏）。
+#[command]
+pub fn get_cached_capture() -> Result<Vec<crate::screenshot::CaptureResult>, GlyphError> {
+    crate::screenshot::cached()
+}
+
 /// OCR 识别图片文件（路径）。首次调用会触发模型下载 + 初始化，较慢。
 #[command]
 pub async fn ocr_recognize_file(path: String) -> Result<String, GlyphError> {

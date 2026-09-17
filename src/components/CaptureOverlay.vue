@@ -33,7 +33,8 @@ const selStyle = computed(() => {
 
 async function load() {
   try {
-    const caps = await invoke<CaptureResult[]>('capture_screens')
+    // 读主窗预截屏的缓存，而非自己再截（避免 overlay 白底被截入 → 白屏）
+    const caps = await invoke<CaptureResult[]>('get_cached_capture')
     const c = caps.find((x) => x.index === monitorIndex) ?? caps[0]
     if (!c) return
     bg.value = `data:image/png;base64,${c.png_base64}`

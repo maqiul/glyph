@@ -29,6 +29,7 @@ pub fn run() {
             commands::create_markdown_file,
             commands::extract_outline,
             commands::capture_screens,
+            commands::get_cached_capture,
             commands::ocr_recognize_file,
             commands::ocr_recognize_base64,
             commands::write_file_base64,

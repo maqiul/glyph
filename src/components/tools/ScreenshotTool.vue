@@ -32,9 +32,8 @@ async function capture() {
   try {
     const caps = await invoke<CaptureResult[]>('capture_screens')
     captures.value = caps
-    if (settings.screenshotDir) {
-      for (const c of caps) await saveToDir(c)
-    }
+    // 默认自动存到目标目录（未设保存目录则存系统下载）
+    for (const c of caps) await saveToDir(c)
   } catch (e: unknown) {
     const msg = typeof e === 'string' ? e : (e as any)?.message ?? JSON.stringify(e)
     error.value = t('screenshot.failed', { msg })
@@ -94,8 +93,10 @@ async function regionCapture() {
   const label = 'capture-overlay'
   try {
     await getCurrentWindow().hide()
-    // 等主窗从屏幕消失，避免 overlay 截到自己
+    // 等主窗从屏幕消失，避免截到主窗残影
     await new Promise((r) => setTimeout(r, 250))
+    // 预截屏并缓存，overlay 只读缓存（不再自我截屏 → 不白屏）
+    await invoke('capture_screens')
     const existing = await WebviewWindow.getByLabel(label)
     if (existing) await existing.close()
 
@@ -116,7 +117,7 @@ async function regionCapture() {
         unRegion()
         unCancel()
         await restoreMain()
-        if (settings.screenshotDir) await saveToDir(newCap)
+        await saveToDir(newCap)
         capturing.value = false
       },
     )
