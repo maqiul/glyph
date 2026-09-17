@@ -28,14 +28,16 @@ pub fn merge(paths: &[String], out: &Path) -> Result<(), GlyphError> {
     }
     let mut merged = Document::with_version("1.5");
     let mut all_pages: Vec<ObjectId> = Vec::new();
-    let mut offset: u32 = 0;
+    let mut next_id: u32 = 1;
 
     for p in paths {
         let mut doc = Document::load(p).map_err(e)?;
-        doc.renumber_objects_with(offset + 1);
-        offset = doc.max_id + 1;
+        doc.renumber_objects_with(next_id);
         let page_ids: Vec<ObjectId> = doc.get_pages().values().copied().collect();
         for (id, obj) in doc.objects.into_iter() {
+            if id.0 >= next_id {
+                next_id = id.0 + 1;
+            }
             merged.objects.insert(id, obj);
         }
         all_pages.extend(page_ids);
@@ -64,7 +66,7 @@ pub fn merge(paths: &[String], out: &Path) -> Result<(), GlyphError> {
     merged.objects.insert(catalog_id, Object::Dictionary(catalog));
     merged.trailer.set("Root", Object::Reference(catalog_id));
 
-    merged.compress();
+    // 不调 compress()：源流多已 FlateDecode 压缩，重压缩会损坏内容流/图片 → 空白页
     merged.save(out).map_err(e)?;
     Ok(())
 }
