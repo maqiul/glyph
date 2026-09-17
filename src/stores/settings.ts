@@ -18,6 +18,10 @@ interface SettingsState {
   currentPath: string | null
   dirty: boolean
   screenshotDir: string
+  ocrEngine: 'local' | 'cloud'
+  ocrProvider: 'baidu' | 'ali' | 'tencent'
+  ocrApiKey: string
+  ocrSecretKey: string
 }
 
 export const useSettingsStore = defineStore('settings', {
@@ -34,6 +38,10 @@ export const useSettingsStore = defineStore('settings', {
     currentPath: null,
     dirty: false,
     screenshotDir: '',
+    ocrEngine: 'local',
+    ocrProvider: 'baidu',
+    ocrApiKey: '',
+    ocrSecretKey: '',
   }),
   actions: {
     setActiveTool(t: ActiveTool) {
@@ -88,6 +96,16 @@ export const useSettingsStore = defineStore('settings', {
     },
     setScreenshotDir(d: string) {
       this.screenshotDir = d
+    },
+    setOcrEngine(e: 'local' | 'cloud') {
+      this.ocrEngine = e
+    },
+    setOcrProvider(p: 'baidu' | 'ali' | 'tencent') {
+      this.ocrProvider = p
+    },
+    setOcrKeys(key: string, secret: string) {
+      this.ocrApiKey = key
+      this.ocrSecretKey = secret
     },
   },
 })

@@ -131,6 +131,26 @@ pub async fn write_file_base64(path: String, data_base64: String) -> Result<(), 
     .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
 }
 
+/// 云端 OCR 识别（provider: baidu/ali/tencent；key 由前端本地配置传入）。
+#[command]
+pub async fn ocr_recognize_cloud(
+    path: String,
+    provider: String,
+    api_key: String,
+    secret_key: String,
+) -> Result<String, GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::ocr_cloud::recognize_cloud(
+            std::path::Path::new(&path),
+            &provider,
+            &api_key,
+            &secret_key,
+        )
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
 /// 新建空 markdown 文件
 #[command]
 pub async fn create_markdown_file(path: String) -> Result<(), GlyphError> {

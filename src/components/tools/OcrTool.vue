@@ -3,8 +3,12 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
+import { useSettingsStore } from '../../stores/settings'
+import { savePersisted } from '../../stores/persistent'
 
 const { t } = useI18n()
+const settings = useSettingsStore()
+
 const text = ref('')
 const busy = ref(false)
 const error = ref<string | null>(null)
@@ -16,6 +20,30 @@ const stats = computed(() => {
   const lines = text.value ? text.value.split('\n').length : 0
   return { chars, lines }
 })
+
+const hint = computed(() =>
+  settings.ocrEngine === 'cloud' ? t('ocr.cloudNote') : t('ocr.hint'),
+)
+
+function setEngine(e: 'local' | 'cloud') {
+  settings.setOcrEngine(e)
+  savePersisted()
+}
+
+function setProvider(p: 'baidu' | 'ali' | 'tencent') {
+  settings.setOcrProvider(p)
+  savePersisted()
+}
+
+function onApiKey(e: Event) {
+  settings.ocrApiKey = (e.target as HTMLInputElement).value
+  savePersisted()
+}
+
+function onSecretKey(e: Event) {
+  settings.ocrSecretKey = (e.target as HTMLInputElement).value
+  savePersisted()
+}
 
 async function pickAndRecognize() {
   try {
@@ -39,7 +67,16 @@ async function recognize(path: string) {
   copied.value = false
   sourceName.value = path.split(/[/\\]/).pop() || path
   try {
-    text.value = await invoke<string>('ocr_recognize_file', { path })
+    if (settings.ocrEngine === 'cloud') {
+      text.value = await invoke<string>('ocr_recognize_cloud', {
+        path,
+        provider: settings.ocrProvider,
+        apiKey: settings.ocrApiKey,
+        secretKey: settings.ocrSecretKey,
+      })
+    } else {
+      text.value = await invoke<string>('ocr_recognize_file', { path })
+    }
   } catch (e: unknown) {
     const msg = typeof e === 'string' ? e : (e as any)?.message ?? JSON.stringify(e)
     error.value = t('ocr.failed', { msg })
@@ -65,11 +102,51 @@ async function copy() {
     <div class="ocr-toolbar">
       <div class="ocr-head">
         <h1>{{ t('placeholder.ocrTitle') }}</h1>
-        <p class="ocr-hint">{{ t('ocr.hint') }}</p>
+        <p class="ocr-hint">{{ hint }}</p>
       </div>
       <button class="btn btn-primary" :disabled="busy" @click="pickAndRecognize">
         {{ busy ? t('ocr.recognizing') : t('ocr.pickImage') }}
       </button>
+    </div>
+
+    <div class="ocr-config">
+      <div class="cfg-group">
+        <span class="cfg-label">{{ t('ocr.engine') }}</span>
+        <div class="seg">
+          <button :class="{ active: settings.ocrEngine === 'local' }" @click="setEngine('local')">
+            {{ t('ocr.engineLocal') }}
+          </button>
+          <button :class="{ active: settings.ocrEngine === 'cloud' }" @click="setEngine('cloud')">
+            {{ t('ocr.engineCloud') }}
+          </button>
+        </div>
+      </div>
+
+      <template v-if="settings.ocrEngine === 'cloud'">
+        <div class="cfg-group">
+          <span class="cfg-label">{{ t('ocr.provider') }}</span>
+          <div class="seg">
+            <button :class="{ active: settings.ocrProvider === 'baidu' }" @click="setProvider('baidu')">百度</button>
+            <button :class="{ active: settings.ocrProvider === 'ali' }" @click="setProvider('ali')">阿里</button>
+            <button :class="{ active: settings.ocrProvider === 'tencent' }" @click="setProvider('tencent')">腾讯</button>
+          </div>
+        </div>
+        <div class="cfg-group cfg-keys">
+          <input
+            class="key-input"
+            :placeholder="t('ocr.apiKey')"
+            :value="settings.ocrApiKey"
+            @input="onApiKey($event)"
+          />
+          <input
+            class="key-input"
+            type="password"
+            :placeholder="t('ocr.secretKey')"
+            :value="settings.ocrSecretKey"
+            @input="onSecretKey($event)"
+          />
+        </div>
+      </template>
     </div>
 
     <div v-if="error" class="ocr-error">⚠ {{ error }}</div>
@@ -111,7 +188,7 @@ async function copy() {
   padding: 24px 28px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 .ocr-toolbar {
@@ -134,6 +211,76 @@ async function copy() {
   margin: 0;
   max-width: 620px;
   line-height: 1.5;
+}
+
+.ocr-config {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.cfg-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cfg-keys {
+  flex: 1;
+  min-width: 260px;
+}
+
+.cfg-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.seg {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.seg button {
+  border: 0;
+  background: var(--bg);
+  color: var(--text-muted);
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.seg button + button {
+  border-left: 1px solid var(--border);
+}
+
+.seg button.active {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.key-input {
+  flex: 1;
+  min-width: 120px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.key-input:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .btn {

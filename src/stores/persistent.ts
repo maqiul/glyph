@@ -14,6 +14,10 @@ interface PersistedState {
   editorFontSize: number
   recentFiles: string[]
   screenshotDir?: string
+  ocrEngine?: 'local' | 'cloud'
+  ocrProvider?: 'baidu' | 'ali' | 'tencent'
+  ocrApiKey?: string
+  ocrSecretKey?: string
 }
 
 let store: LazyStore | null = null
@@ -38,6 +42,10 @@ export async function loadPersisted(): Promise<void> {
       if (saved.editorFontSize) settings.setEditorFontSize(saved.editorFontSize)
       if (saved.recentFiles) settings.recentFiles = saved.recentFiles
       if (saved.screenshotDir !== undefined) settings.setScreenshotDir(saved.screenshotDir)
+      if (saved.ocrEngine) settings.setOcrEngine(saved.ocrEngine)
+      if (saved.ocrProvider) settings.setOcrProvider(saved.ocrProvider)
+      if (saved.ocrApiKey !== undefined) settings.ocrApiKey = saved.ocrApiKey
+      if (saved.ocrSecretKey !== undefined) settings.ocrSecretKey = saved.ocrSecretKey
     }
     setLocale(settings.language)
   } catch (e) {
@@ -59,6 +67,10 @@ export async function savePersisted(): Promise<void> {
       editorFontSize: settings.editorFontSize,
       recentFiles: settings.recentFiles,
       screenshotDir: settings.screenshotDir,
+      ocrEngine: settings.ocrEngine,
+      ocrProvider: settings.ocrProvider,
+      ocrApiKey: settings.ocrApiKey,
+      ocrSecretKey: settings.ocrSecretKey,
     }
     await s.set('settings', payload)
     await s.save()

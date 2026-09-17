@@ -12,6 +12,7 @@ pub mod commands;
 pub mod error;
 pub mod markdown;
 pub mod ocr;
+pub mod ocr_cloud;
 pub mod screenshot;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -32,6 +33,7 @@ pub fn run() {
             commands::get_cached_capture,
             commands::ocr_recognize_file,
             commands::ocr_recognize_base64,
+            commands::ocr_recognize_cloud,
             commands::write_file_base64,
         ])
         .setup(|_app| {
