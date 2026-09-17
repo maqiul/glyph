@@ -71,3 +71,52 @@ fn nanos() -> u128 {
         .map(|d| d.as_nanos())
         .unwrap_or(0)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 端到端验证：建 OCR 引擎（首次触发模型 auto-download）+ 推理一张图。
+    /// 不校验文字正确性（无真图），只证明"下载→加载→检测→识别"链路通、不 panic。
+    #[test]
+    fn ocr_engine_builds_and_predicts() {
+        let ocr = OAROCRBuilder::new(DET_MODEL, REC_MODEL, DICT)
+            .build()
+            .expect("build OCR (downloads models on first run)");
+
+        let tmp = std::env::temp_dir().join("glyph_ocr_test.png");
+        let img = image::DynamicImage::new_rgb8(220, 80);
+        img.save(&tmp).expect("save test img");
+
+        let loaded = load_image(&tmp).expect("load test img");
+        let results = ocr.predict(vec![loaded]).expect("predict");
+        let _ = results; // 纯色图无文字，结果为空属正常
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    /// 真实图片识别质量验证：图路径由环境变量 GLYPH_OCR_TEST_IMG 传入。
+    #[test]
+    #[ignore = "需真实图片，手动跑"]
+    fn ocr_real_image_debug() {
+        let path = std::env::var("GLYPH_OCR_TEST_IMG").unwrap_or_default();
+        if path.is_empty() {
+            eprintln!("GLYPH_OCR_TEST_IMG not set, skip");
+            return;
+        }
+        let ocr = OAROCRBuilder::new(DET_MODEL, REC_MODEL, DICT)
+            .build()
+            .expect("build OCR");
+        let img = load_image(Path::new(&path)).expect("load image");
+        let results = ocr.predict(vec![img]).expect("predict");
+        let mut count = 0;
+        for r in results {
+            for reg in r.text_regions {
+                if let Some(t) = reg.text {
+                    count += 1;
+                    println!("OCR> {}", t);
+                }
+            }
+        }
+        println!("OCR total lines: {}", count);
+    }
+}
