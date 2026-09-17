@@ -77,24 +77,30 @@ async function onUp() {
   const sy = Math.round(s.y * dpr)
   const sw = Math.round(s.w * dpr)
   const sh = Math.round(s.h * dpr)
-  const canvas = document.createElement('canvas')
-  canvas.width = sw
-  canvas.height = sh
-  const ctx = canvas.getContext('2d')
-  if (!ctx) {
-    await cancel()
-    return
+  try {
+    const canvas = document.createElement('canvas')
+    canvas.width = sw
+    canvas.height = sh
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('canvas 2d unavailable')
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh)
+    const dataUrl = canvas.toDataURL('image/png')
+    const png_base64 = dataUrl.split(',')[1] ?? ''
+    await emit('capture-region', { png_base64, width: sw, height: sh, monitor: monitorIndex })
+  } catch (e) {
+    console.error('capture crop failed:', e)
+    await emit('capture-cancelled')
+  } finally {
+    await getCurrentWindow().close()
   }
-  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh)
-  const dataUrl = canvas.toDataURL('image/png')
-  const png_base64 = dataUrl.split(',')[1] ?? ''
-  await emit('capture-region', { png_base64, width: sw, height: sh, monitor: monitorIndex })
-  await getCurrentWindow().close()
 }
 
 async function cancel() {
-  await emit('capture-cancelled')
-  await getCurrentWindow().close()
+  try {
+    await emit('capture-cancelled')
+  } finally {
+    await getCurrentWindow().close()
+  }
 }
 
 function onKey(e: KeyboardEvent) {
