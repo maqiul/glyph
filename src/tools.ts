@@ -3,6 +3,7 @@ import type { ActiveTool } from './stores/settings'
 import MarkdownTool from './components/tools/MarkdownTool.vue'
 import ScreenshotTool from './components/tools/ScreenshotTool.vue'
 import OcrTool from './components/tools/OcrTool.vue'
+import DevTool from './components/tools/DevTool.vue'
 
 export interface ToolDef {
   id: ActiveTool
@@ -34,5 +35,11 @@ export const TOOLS: ToolDef[] = [
     labelKey: 'tools.ocr',
     icon: 'M4 8V5a1 1 0 0 1 1-1h3 M16 4h3a1 1 0 0 1 1 1v3 M20 16v3a1 1 0 0 1-1 1h-3 M8 20H5a1 1 0 0 1-1-1v-3 M8 10h8M8 14h5',
     component: OcrTool,
+  },
+  {
+    id: 'dev',
+    labelKey: 'tools.dev',
+    icon: 'M8 9l-4 3 4 3 M16 9l4 3-4 3 M13 7l-2 10',
+    component: DevTool,
   },
 ]

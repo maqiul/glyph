@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import ActivityBar from './components/ActivityBar.vue'
+import CommandPalette from './components/CommandPalette.vue'
 import { TOOLS } from './tools'
 import { useSettingsStore } from './stores/settings'
 import { loadPersisted, savePersisted } from './stores/persistent'
@@ -19,6 +20,7 @@ const { t } = useI18n()
 const settings = useSettingsStore()
 const appInfo = ref<AppInfo | null>(null)
 const showSettings = ref(false)
+const showPalette = ref(false)
 
 const activeToolDef = computed(
   () => TOOLS.find((tool) => tool.id === settings.activeTool) ?? TOOLS[0]!,
@@ -52,7 +54,10 @@ function setTheme(theme: 'light' | 'dark') {
 
 function handleKeydown(e: KeyboardEvent) {
   const ctrl = e.ctrlKey || e.metaKey
-  if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'd') {
+  if (ctrl && e.shiftKey && e.key.toLowerCase() === 'p') {
+    e.preventDefault()
+    showPalette.value = !showPalette.value
+  } else if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'd') {
     e.preventDefault()
     toggleTheme()
   }
@@ -119,6 +124,8 @@ onUnmounted(() => {
         </keep-alive>
       </main>
     </div>
+
+    <CommandPalette v-if="showPalette" @close="showPalette = false" />
   </div>
 </template>
 

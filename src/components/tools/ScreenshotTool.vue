@@ -108,6 +108,23 @@ const dirLabel = computed(() => {
   return parts[parts.length - 1] || settings.screenshotDir
 })
 
+const ocrBusy = ref(false)
+const ocrResults = ref<Record<number, string>>({})
+const ocrError = ref<string | null>(null)
+
+async function recognizeShot(c: CaptureResult) {
+  ocrBusy.value = true
+  ocrError.value = null
+  try {
+    const txt = await invoke<string>('ocr_recognize_base64', { imageBase64: c.png_base64 })
+    ocrResults.value = { ...ocrResults.value, [c.index]: txt || '' }
+  } catch (e: unknown) {
+    ocrError.value = t('screenshot.ocrFailed', { msg: String(e) })
+  } finally {
+    ocrBusy.value = false
+  }
+}
+
 async function restoreMain() {
   const w = getCurrentWindow()
   await w.show()
@@ -217,7 +234,14 @@ async function regionCapture() {
             <div class="shot-card-actions">
               <button class="btn btn-small" @click="saveToDir(c)">{{ t('screenshot.saveToDir') }}</button>
               <button class="btn btn-small" @click="saveAs(c)">{{ t('screenshot.saveAs') }}</button>
+              <button class="btn btn-small btn-ocr" :disabled="ocrBusy" @click="recognizeShot(c)">
+                {{ ocrBusy ? t('screenshot.ocrBusy') : t('screenshot.ocrBtn') }}
+              </button>
             </div>
+          </div>
+          <div v-if="ocrResults[c.index] !== undefined" class="shot-ocr">
+            <div class="shot-ocr-head">{{ t('screenshot.ocrResult') }}</div>
+            <textarea class="shot-ocr-text" readonly :value="ocrResults[c.index] || '（未识别到文字）'"></textarea>
           </div>
         </div>
       </div>
@@ -428,5 +452,42 @@ async function regionCapture() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.btn-ocr {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-ocr:hover {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.shot-ocr {
+  border-top: 1px solid var(--border);
+  padding: 8px 12px;
+}
+
+.shot-ocr-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.shot-ocr-text {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: var(--font-sans);
 }
 </style>
