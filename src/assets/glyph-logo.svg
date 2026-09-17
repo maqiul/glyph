@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Glyph Logo：扁平几何 G 字形 -->
+  <!-- 外圆角方框 -->
+  <rect x="2" y="2" width="28" height="28" rx="7" fill="#0969da"/>
+  <!-- G 字形：圆弧 + 横杠 -->
+  <path d="M22 11.5a6 6 0 1 0 0 9" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"/>
+  <line x1="16" y1="16" x2="22" y2="16" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"/>
+  <line x1="22" y1="16" x2="22" y2="20" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"/>
+</svg>

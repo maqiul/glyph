@@ -1,0 +1,51 @@
+[package]
+name = "glyph"
+version = "0.1.0"
+description = "Glyph — A focused Markdown reader"
+authors = ["Glyph Contributors"]
+license = "MIT"
+repository = ""
+edition = "2021"
+rust-version = "1.77.2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+# Runtime
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+thiserror = "2"
+
+# Tauri 2
+tauri = { version = "2.11.3", features = [] }
+tauri-plugin-log = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-store = "2"
+
+# Markdown 解析：渲染全部放前端（markdown-it），后端只负责大纲抽取与编码检测
+# 注释：comrak 之前作为后端渲染器，已在前端 markdown-it 替换后移除
+# comrak = { version = "0.55", default-features = false, features = ["shortcodes"] }
+
+# 编码检测
+chardetng = "0.1"
+encoding_rs = "0.8"
+# 截图捕获（三平台：Win/mac/Linux-X11；Linux Wayland 走 portal）
+xcap = { version = "0.9", features = ["image"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+base64 = "0.23"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

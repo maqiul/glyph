@@ -1,0 +1,75 @@
+/* Glyph 全局样式 —— 主题变量、字体栈、reset */
+
+:root {
+  /* 字体 */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "Microsoft YaHei", "PingFang SC", sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "Fira Code", "SF Mono", Consolas, monospace;
+
+  /* 亮色主题（默认） */
+  --bg: #ffffff;
+  --surface: #f6f8fa;
+  --surface-hover: #eef1f5;
+  --text: #1f2328;
+  --text-muted: #656d76;
+  --border: #d0d7de;
+  --accent: #0969da;
+  --accent-hover: #0860c7;
+  --accent-fg: #ffffff;
+  --code-bg: #f6f8fa;
+  --error: #cf222e;
+  --cm-heading: #0550ae;
+  --cm-link: #0969da;
+  --cm-code: #953800;
+}
+
+[data-theme='dark'] {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-hover: #21262d;
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --border: #30363d;
+  --accent: #58a6ff;
+  --accent-hover: #79b8ff;
+  --accent-fg: #0d1117;
+  --code-bg: #161b22;
+  --error: #f85149;
+  --cm-heading: #79c0ff;
+  --cm-link: #58a6ff;
+  --cm-code: #ffa657;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+#app {
+  height: 100%;
+}
+
+/* 让 Tauri 窗口的标题栏控件不重叠我们的顶部栏 */
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: dark;
+  }
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
