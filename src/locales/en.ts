@@ -11,6 +11,7 @@ export default {
   recent: { empty: 'No recent files', clearAll: 'Clear all' },
   settings: {
     language: 'Language',
+    theme: 'Theme',
     previewFontSize: 'Preview font size',
     lineWidth: 'Line width',
     editorFontSize: 'Editor font size',

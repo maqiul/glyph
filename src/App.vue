@@ -2,7 +2,6 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
-import { open } from '@tauri-apps/plugin-dialog'
 import ActivityBar from './components/ActivityBar.vue'
 import { TOOLS } from './tools'
 import { useSettingsStore } from './stores/settings'
@@ -46,36 +45,10 @@ function changeLang(l: Lang) {
   savePersisted()
 }
 
-function toggleImmersive() {
-  settings.setImmersive(!settings.immersive)
-}
-
-async function chooseScreenshotDir() {
-  try {
-    const dir = await open({
-      directory: true,
-      multiple: false,
-      defaultPath: settings.screenshotDir || undefined,
-    })
-    if (dir && typeof dir === 'string') {
-      settings.setScreenshotDir(dir)
-      savePersisted()
-    }
-  } catch (e) {
-    console.warn('choose dir failed:', e)
-  }
-}
-
-function clearScreenshotDir() {
-  settings.setScreenshotDir('')
+function setTheme(theme: 'light' | 'dark') {
+  settings.setTheme(theme)
   savePersisted()
 }
-
-const screenshotDirLabel = computed(() => {
-  if (!settings.screenshotDir) return t('screenshot.dirDefault')
-  const parts = settings.screenshotDir.split(/[/\\]/)
-  return parts[parts.length - 1] || settings.screenshotDir
-})
 
 function handleKeydown(e: KeyboardEvent) {
   const ctrl = e.ctrlKey || e.metaKey
@@ -126,35 +99,10 @@ onUnmounted(() => {
               </div>
             </div>
             <div class="setting-group">
-              <div class="setting-label">{{ t('settings.previewFontSize') }}</div>
+              <div class="setting-label">{{ t('settings.theme') }}</div>
               <div class="setting-row">
-                <button v-for="s in ['S', 'M', 'L', 'XL']" :key="s" :class="{ active: settings.fontSize === s }" @click="settings.setFontSize(s as any); savePersisted()">{{ s }}</button>
-              </div>
-            </div>
-            <div class="setting-group">
-              <div class="setting-label">{{ t('settings.lineWidth') }}</div>
-              <div class="setting-row">
-                <button v-for="w in (['compact', 'standard', 'wide'] as const)" :key="w" :class="{ active: settings.lineWidth === w }" @click="settings.setLineWidth(w); savePersisted()">{{ t(`settings.width.${w}`) }}</button>
-              </div>
-            </div>
-            <div class="setting-group">
-              <div class="setting-label">{{ t('settings.editorFontSize') }}: {{ settings.editorFontSize }}px</div>
-              <div class="setting-row">
-                <button @click="settings.setEditorFontSize(settings.editorFontSize - 1); savePersisted()">A−</button>
-                <button @click="settings.setEditorFontSize(settings.editorFontSize + 1); savePersisted()">A+</button>
-              </div>
-            </div>
-            <div class="setting-group">
-              <div class="setting-label">{{ t('settings.immersive') }}</div>
-              <div class="setting-row">
-                <button @click="toggleImmersive">F11 {{ settings.immersive ? t('settings.on') : t('settings.off') }}</button>
-              </div>
-            </div>
-            <div class="setting-group">
-              <div class="setting-label">{{ t('screenshot.dirLabel') }}</div>
-              <div class="setting-row">
-                <button class="dir-btn" :title="settings.screenshotDir" @click="chooseScreenshotDir">{{ screenshotDirLabel }}</button>
-                <button v-if="settings.screenshotDir" class="dir-clear" @click="clearScreenshotDir">✕</button>
+                <button :class="{ active: settings.theme === 'light' }" @click="setTheme('light')">☀️ Light</button>
+                <button :class="{ active: settings.theme === 'dark' }" @click="setTheme('dark')">🌙 Dark</button>
               </div>
             </div>
             <p v-if="appInfo" class="about">Glyph v{{ appInfo.version }} · Tauri {{ appInfo.tauri_version }} · {{ appInfo.platform }}</p>

@@ -11,6 +11,7 @@ export default {
   recent: { empty: '暂无最近文件', clearAll: '清空全部' },
   settings: {
     language: '界面语言',
+    theme: '主题',
     previewFontSize: '预览字号',
     lineWidth: '行宽',
     editorFontSize: '编辑器字号',

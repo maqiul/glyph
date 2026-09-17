@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { save } from '@tauri-apps/plugin-dialog'
+import { open, save } from '@tauri-apps/plugin-dialog'
 import { join, downloadDir } from '@tauri-apps/api/path'
 import { useSettingsStore } from '../../stores/settings'
+import { savePersisted } from '../../stores/persistent'
 
 interface CaptureResult {
   index: number
@@ -79,6 +80,33 @@ async function saveAs(c: CaptureResult) {
     error.value = t('screenshot.saveFailed', { msg: String(e) })
   }
 }
+
+async function chooseDir() {
+  try {
+    const dir = await open({
+      directory: true,
+      multiple: false,
+      defaultPath: settings.screenshotDir || undefined,
+    })
+    if (dir && typeof dir === 'string') {
+      settings.setScreenshotDir(dir)
+      savePersisted()
+    }
+  } catch (e) {
+    console.warn('choose dir failed:', e)
+  }
+}
+
+function clearDir() {
+  settings.setScreenshotDir('')
+  savePersisted()
+}
+
+const dirLabel = computed(() => {
+  if (!settings.screenshotDir) return t('screenshot.dirDefault')
+  const parts = settings.screenshotDir.split(/[/\\]/)
+  return parts[parts.length - 1] || settings.screenshotDir
+})
 
 async function restoreMain() {
   const w = getCurrentWindow()
@@ -161,6 +189,12 @@ async function regionCapture() {
           {{ capturing ? t('screenshot.capturing') : t('screenshot.capture') }}
         </button>
       </div>
+    </div>
+
+    <div class="shot-config">
+      <span class="cfg-label">{{ t('screenshot.dirLabel') }}</span>
+      <button class="btn btn-small dir-btn" :title="settings.screenshotDir" @click="chooseDir">{{ dirLabel }}</button>
+      <button v-if="settings.screenshotDir" class="btn btn-small" @click="clearDir">✕</button>
     </div>
 
     <div v-if="error" class="shot-error">⚠ {{ error }}</div>
@@ -368,6 +402,29 @@ async function regionCapture() {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   z-index: 100;
   max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shot-config {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.cfg-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.dir-btn {
+  max-width: 360px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

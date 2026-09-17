@@ -13,6 +13,7 @@ const settings = useSettingsStore()
 const errorMessage = ref<string | null>(null)
 const readerRef = ref<InstanceType<typeof Reader> | null>(null)
 const showRecent = ref(false)
+const showMdSettings = ref(false)
 
 const currentTitle = computed(() => {
   if (!settings.currentPath) return 'Markdown'
@@ -189,10 +190,40 @@ onUnmounted(() => {
           <span>{{ t('toolbar.open') }}</span>
         </button>
         <button class="btn" :disabled="!settings.dirty" @click="saveFile" title="Ctrl+S">{{ t('toolbar.save') }}</button>
+        <div class="menu-anchor">
+          <button class="btn btn-icon-only" title="Markdown 设置" @click="showMdSettings = !showMdSettings">⚙</button>
+          <div v-if="showMdSettings" class="dropdown dropdown-settings" @click.stop>
+            <div class="setting-group">
+              <div class="setting-label">{{ t('settings.previewFontSize') }}</div>
+              <div class="setting-row">
+                <button v-for="s in ['S', 'M', 'L', 'XL']" :key="s" :class="{ active: settings.fontSize === s }" @click="settings.setFontSize(s as any); savePersisted()">{{ s }}</button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <div class="setting-label">{{ t('settings.lineWidth') }}</div>
+              <div class="setting-row">
+                <button v-for="w in (['compact', 'standard', 'wide'] as const)" :key="w" :class="{ active: settings.lineWidth === w }" @click="settings.setLineWidth(w); savePersisted()">{{ t(`settings.width.${w}`) }}</button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <div class="setting-label">{{ t('settings.editorFontSize') }}: {{ settings.editorFontSize }}px</div>
+              <div class="setting-row">
+                <button @click="settings.setEditorFontSize(settings.editorFontSize - 1); savePersisted()">A−</button>
+                <button @click="settings.setEditorFontSize(settings.editorFontSize + 1); savePersisted()">A+</button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <div class="setting-label">{{ t('settings.immersive') }}</div>
+              <div class="setting-row">
+                <button @click="toggleImmersive">F11 {{ settings.immersive ? t('settings.on') : t('settings.off') }}</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
-    <main class="md-main" @click="showRecent = false">
+    <main class="md-main" @click="showRecent = false; showMdSettings = false">
       <Reader v-if="settings.currentPath" ref="readerRef" :path="settings.currentPath" />
       <div v-else class="empty-state">
         <div class="empty-icon">
@@ -586,5 +617,52 @@ onUnmounted(() => {
 
 .error-close:hover {
   opacity: 1;
+}
+
+.btn-icon-only {
+  padding: 5px 9px;
+  font-size: 14px;
+}
+
+.dropdown-settings {
+  min-width: 280px;
+}
+
+.setting-group {
+  padding: 8px 10px;
+}
+
+.setting-group + .setting-group {
+  border-top: 1px solid var(--border);
+}
+
+.setting-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.setting-row {
+  display: flex;
+  gap: 6px;
+}
+
+.setting-row button {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.setting-row button.active {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
 }
 </style>
