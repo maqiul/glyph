@@ -11,6 +11,7 @@
 pub mod commands;
 pub mod error;
 pub mod markdown;
+pub mod ocr;
 pub mod screenshot;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -28,6 +29,8 @@ pub fn run() {
             commands::create_markdown_file,
             commands::extract_outline,
             commands::capture_screens,
+            commands::ocr_recognize_file,
+            commands::ocr_recognize_base64,
         ])
         .setup(|_app| {
             log::info!("Glyph 启动 v{}", env!("CARGO_PKG_VERSION"));

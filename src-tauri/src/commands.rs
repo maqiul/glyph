@@ -88,6 +88,24 @@ pub async fn capture_screens() -> Result<Vec<crate::screenshot::CaptureResult>, 
         .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
 }
 
+/// OCR 识别图片文件（路径）。首次调用会触发模型下载 + 初始化，较慢。
+#[command]
+pub async fn ocr_recognize_file(path: String) -> Result<String, GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::ocr::recognize_file(std::path::Path::new(&path))
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
+/// OCR 识别 base64 图片（截图/剪贴板）。
+#[command]
+pub async fn ocr_recognize_base64(image_base64: String) -> Result<String, GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || crate::ocr::recognize_base64(&image_base64))
+        .await
+        .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
 /// 新建空 markdown 文件
 #[command]
 pub async fn create_markdown_file(path: String) -> Result<(), GlyphError> {

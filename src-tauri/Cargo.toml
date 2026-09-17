@@ -42,6 +42,7 @@ encoding_rs = "0.8"
 xcap = { version = "0.9", features = ["image"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 base64 = "0.23"
+oar-ocr = { version = "0.9", features = ["auto-download"] }
 
 [profile.release]
 panic = "abort"

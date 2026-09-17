@@ -75,4 +75,16 @@ export default {
     overlayHint: 'Drag to select an area',
     overlayCancel: 'to cancel',
   },
+  ocr: {
+    pickImage: 'Pick Image',
+    recognizing: 'Recognizing… (first run downloads the model, please wait)',
+    resultTitle: 'Result',
+    empty: 'Recognized text will appear here',
+    copy: 'Copy',
+    copied: 'Copied',
+    chars: '{n} chars',
+    lines: '{n} lines',
+    hint: 'Pick an image (png/jpg/bmp/webp); local PP-OCR recognizes text offline. First use auto-downloads the model (~21MB).',
+    failed: 'Recognition failed: {msg}',
+  },
 }

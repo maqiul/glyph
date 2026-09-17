@@ -75,4 +75,16 @@ export default {
     overlayHint: '拖拽鼠标框选区域',
     overlayCancel: '取消',
   },
+  ocr: {
+    pickImage: '选择图片识别',
+    recognizing: '识别中…（首次运行会下载模型，请稍候）',
+    resultTitle: '识别结果',
+    empty: '识别结果将显示在这里',
+    copy: '复制',
+    copied: '已复制',
+    chars: '{n} 字符',
+    lines: '{n} 行',
+    hint: '选择一张图片（png/jpg/bmp/webp），本地 PP-OCR 离线识别其中的文字。首次使用会自动下载模型（约 21MB）。',
+    failed: '识别失败：{msg}',
+  },
 }
