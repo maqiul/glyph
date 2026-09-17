@@ -17,6 +17,7 @@ interface SettingsState {
   recentFiles: string[]
   currentPath: string | null
   dirty: boolean
+  screenshotDir: string
 }
 
 export const useSettingsStore = defineStore('settings', {
@@ -32,6 +33,7 @@ export const useSettingsStore = defineStore('settings', {
     recentFiles: [],
     currentPath: null,
     dirty: false,
+    screenshotDir: '',
   }),
   actions: {
     setActiveTool(t: ActiveTool) {
@@ -83,6 +85,9 @@ export const useSettingsStore = defineStore('settings', {
     },
     setDirty(d: boolean) {
       this.dirty = d
+    },
+    setScreenshotDir(d: string) {
+      this.screenshotDir = d
     },
   },
 })

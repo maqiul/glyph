@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
 import ActivityBar from './components/ActivityBar.vue'
 import { TOOLS } from './tools'
 import { useSettingsStore } from './stores/settings'
@@ -48,6 +49,33 @@ function changeLang(l: Lang) {
 function toggleImmersive() {
   settings.setImmersive(!settings.immersive)
 }
+
+async function chooseScreenshotDir() {
+  try {
+    const dir = await open({
+      directory: true,
+      multiple: false,
+      defaultPath: settings.screenshotDir || undefined,
+    })
+    if (dir && typeof dir === 'string') {
+      settings.setScreenshotDir(dir)
+      savePersisted()
+    }
+  } catch (e) {
+    console.warn('choose dir failed:', e)
+  }
+}
+
+function clearScreenshotDir() {
+  settings.setScreenshotDir('')
+  savePersisted()
+}
+
+const screenshotDirLabel = computed(() => {
+  if (!settings.screenshotDir) return t('screenshot.dirDefault')
+  const parts = settings.screenshotDir.split(/[/\\]/)
+  return parts[parts.length - 1] || settings.screenshotDir
+})
 
 function handleKeydown(e: KeyboardEvent) {
   const ctrl = e.ctrlKey || e.metaKey
@@ -120,6 +148,13 @@ onUnmounted(() => {
               <div class="setting-label">{{ t('settings.immersive') }}</div>
               <div class="setting-row">
                 <button @click="toggleImmersive">F11 {{ settings.immersive ? t('settings.on') : t('settings.off') }}</button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <div class="setting-label">{{ t('screenshot.dirLabel') }}</div>
+              <div class="setting-row">
+                <button class="dir-btn" :title="settings.screenshotDir" @click="chooseScreenshotDir">{{ screenshotDirLabel }}</button>
+                <button v-if="settings.screenshotDir" class="dir-clear" @click="clearScreenshotDir">✕</button>
               </div>
             </div>
             <p v-if="appInfo" class="about">Glyph v{{ appInfo.version }} · Tauri {{ appInfo.tauri_version }} · {{ appInfo.platform }}</p>
@@ -292,5 +327,19 @@ onUnmounted(() => {
   flex: 1;
   min-width: 0;
   overflow: hidden;
+}
+
+.dir-btn {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.dir-clear {
+  flex: 0 0 auto;
+  width: 32px;
 }
 </style>

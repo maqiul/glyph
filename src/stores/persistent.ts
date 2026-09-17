@@ -13,6 +13,7 @@ interface PersistedState {
   lineWidth: 'compact' | 'standard' | 'wide'
   editorFontSize: number
   recentFiles: string[]
+  screenshotDir?: string
 }
 
 let store: LazyStore | null = null
@@ -36,6 +37,7 @@ export async function loadPersisted(): Promise<void> {
       if (saved.lineWidth) settings.setLineWidth(saved.lineWidth)
       if (saved.editorFontSize) settings.setEditorFontSize(saved.editorFontSize)
       if (saved.recentFiles) settings.recentFiles = saved.recentFiles
+      if (saved.screenshotDir !== undefined) settings.setScreenshotDir(saved.screenshotDir)
     }
     setLocale(settings.language)
   } catch (e) {
@@ -56,6 +58,7 @@ export async function savePersisted(): Promise<void> {
       lineWidth: settings.lineWidth,
       editorFontSize: settings.editorFontSize,
       recentFiles: settings.recentFiles,
+      screenshotDir: settings.screenshotDir,
     }
     await s.set('settings', payload)
     await s.save()

@@ -5,6 +5,7 @@
 use std::fs as std_fs;
 use std::path::Path;
 
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Serialize;
 use tauri::command;
 
@@ -104,6 +105,24 @@ pub async fn ocr_recognize_base64(image_base64: String) -> Result<String, GlyphE
     tauri::async_runtime::spawn_blocking(move || crate::ocr::recognize_base64(&image_base64))
         .await
         .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
+/// 把 base64 数据写入指定路径（截图保存用）。自动创建父目录。
+#[command]
+pub async fn write_file_base64(path: String, data_base64: String) -> Result<(), GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || -> Result<(), GlyphError> {
+        let bytes = STANDARD
+            .decode(&data_base64)
+            .map_err(|e| GlyphError::Internal(format!("base64: {e}")))?;
+        let p = Path::new(&path);
+        if let Some(parent) = p.parent() {
+            std_fs::create_dir_all(parent).map_err(GlyphError::from)?;
+        }
+        std_fs::write(p, &bytes).map_err(GlyphError::from)?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
 }
 
 /// 新建空 markdown 文件

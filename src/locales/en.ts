@@ -74,6 +74,13 @@ export default {
     region: 'Region Capture',
     overlayHint: 'Drag to select an area',
     overlayCancel: 'to cancel',
+    saveToDir: 'Save to Folder',
+    saveAs: 'Save As',
+    savedTo: 'Saved to {path}',
+    saveFailed: 'Save failed: {msg}',
+    dirLabel: 'Screenshot folder',
+    dirDefault: 'Default (Downloads)',
+    dirChoose: 'Change',
   },
   ocr: {
     pickImage: 'Pick Image',

@@ -74,6 +74,13 @@ export default {
     region: '框选截图',
     overlayHint: '拖拽鼠标框选区域',
     overlayCancel: '取消',
+    saveToDir: '保存到目录',
+    saveAs: '另存为',
+    savedTo: '已保存到 {path}',
+    saveFailed: '保存失败：{msg}',
+    dirLabel: '截图保存目录',
+    dirDefault: '默认（下载）',
+    dirChoose: '更改',
   },
   ocr: {
     pickImage: '选择图片识别',

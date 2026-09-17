@@ -31,6 +31,7 @@ pub fn run() {
             commands::capture_screens,
             commands::ocr_recognize_file,
             commands::ocr_recognize_base64,
+            commands::write_file_base64,
         ])
         .setup(|_app| {
             log::info!("Glyph 启动 v{}", env!("CARGO_PKG_VERSION"));

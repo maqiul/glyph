@@ -5,6 +5,9 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { save } from '@tauri-apps/plugin-dialog'
+import { join, downloadDir } from '@tauri-apps/api/path'
+import { useSettingsStore } from '../../stores/settings'
 
 interface CaptureResult {
   index: number
@@ -17,15 +20,21 @@ interface CaptureResult {
 }
 
 const { t } = useI18n()
+const settings = useSettingsStore()
 const captures = ref<CaptureResult[]>([])
 const capturing = ref(false)
 const error = ref<string | null>(null)
+const saveToast = ref<string | null>(null)
 
 async function capture() {
   capturing.value = true
   error.value = null
   try {
-    captures.value = await invoke<CaptureResult[]>('capture_screens')
+    const caps = await invoke<CaptureResult[]>('capture_screens')
+    captures.value = caps
+    if (settings.screenshotDir) {
+      for (const c of caps) await saveToDir(c)
+    }
   } catch (e: unknown) {
     const msg = typeof e === 'string' ? e : (e as any)?.message ?? JSON.stringify(e)
     error.value = t('screenshot.failed', { msg })
@@ -34,17 +43,42 @@ async function capture() {
   }
 }
 
-function download(c: CaptureResult) {
-  const bin = atob(c.png_base64)
-  const bytes = new Uint8Array(bin.length)
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-  const blob = new Blob([bytes], { type: 'image/png' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `glyph-screenshot-${c.index}-${Date.now()}.png`
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+function tsName(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `glyph-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.png`
+}
+
+async function targetDir(): Promise<string> {
+  return settings.screenshotDir || (await downloadDir())
+}
+
+async function saveToDir(c: CaptureResult) {
+  try {
+    const dir = await targetDir()
+    const path = await join(dir, tsName())
+    await invoke('write_file_base64', { path, dataBase64: c.png_base64 })
+    saveToast.value = t('screenshot.savedTo', { path })
+    setTimeout(() => (saveToast.value = null), 2500)
+  } catch (e: unknown) {
+    error.value = t('screenshot.saveFailed', { msg: String(e) })
+  }
+}
+
+async function saveAs(c: CaptureResult) {
+  try {
+    const target = await save({
+      title: t('screenshot.saveAs'),
+      defaultPath: tsName(),
+      filters: [{ name: 'PNG', extensions: ['png'] }],
+    })
+    if (!target) return
+    await invoke('write_file_base64', { path: target, dataBase64: c.png_base64 })
+    saveToast.value = t('screenshot.savedTo', { path: target })
+    setTimeout(() => (saveToast.value = null), 2500)
+  } catch (e: unknown) {
+    error.value = t('screenshot.saveFailed', { msg: String(e) })
+  }
 }
 
 async function restoreMain() {
@@ -69,21 +103,20 @@ async function regionCapture() {
       'capture-region',
       async (e) => {
         const p = e.payload
-        captures.value = [
-          ...captures.value,
-          {
-            index: captures.value.length,
-            name: `Region ${p.width}×${p.height}`,
-            x: 0,
-            y: 0,
-            width: p.width,
-            height: p.height,
-            png_base64: p.png_base64,
-          },
-        ]
+        const newCap: CaptureResult = {
+          index: captures.value.length,
+          name: `Region ${p.width}×${p.height}`,
+          x: 0,
+          y: 0,
+          width: p.width,
+          height: p.height,
+          png_base64: p.png_base64,
+        }
+        captures.value = [...captures.value, newCap]
         unRegion()
         unCancel()
         await restoreMain()
+        if (settings.screenshotDir) await saveToDir(newCap)
         capturing.value = false
       },
     )
@@ -146,11 +179,16 @@ async function regionCapture() {
           </div>
           <div class="shot-card-foot">
             <span class="shot-pos">@ {{ c.x }}, {{ c.y }}</span>
-            <button class="btn btn-small" @click="download(c)">{{ t('screenshot.download') }}</button>
+            <div class="shot-card-actions">
+              <button class="btn btn-small" @click="saveToDir(c)">{{ t('screenshot.saveToDir') }}</button>
+              <button class="btn btn-small" @click="saveAs(c)">{{ t('screenshot.saveAs') }}</button>
+            </div>
           </div>
         </div>
       </div>
     </div>
+
+    <div v-if="saveToast" class="save-toast">{{ saveToast }}</div>
   </div>
 </template>
 
@@ -310,5 +348,27 @@ async function regionCapture() {
   font-size: 11px;
   color: var(--text-muted);
   font-family: var(--font-mono);
+}
+
+.shot-card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.save-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
