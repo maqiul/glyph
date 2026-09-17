@@ -151,6 +151,21 @@ pub async fn ocr_recognize_cloud(
     .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
 }
 
+/// 云端 OCR 识别 base64 图片（截图联动用）。
+#[command]
+pub async fn ocr_recognize_cloud_base64(
+    image_base64: String,
+    provider: String,
+    api_key: String,
+    secret_key: String,
+) -> Result<String, GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::ocr_cloud::recognize_cloud_base64(&image_base64, &provider, &api_key, &secret_key)
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
 /// 新建空 markdown 文件
 #[command]
 pub async fn create_markdown_file(path: String) -> Result<(), GlyphError> {

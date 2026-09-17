@@ -61,6 +61,7 @@ pub fn run() {
             commands::ocr_recognize_file,
             commands::ocr_recognize_base64,
             commands::ocr_recognize_cloud,
+            commands::ocr_recognize_cloud_base64,
             commands::write_file_base64,
         ])
         .setup(|app| {

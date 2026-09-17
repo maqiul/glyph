@@ -10,8 +10,21 @@ use std::path::Path;
 
 use crate::error::GlyphError;
 
+/// 从文件路径识别（读文件转 base64 后走云端）。
 pub fn recognize_cloud(
     path: &Path,
+    provider: &str,
+    api_key: &str,
+    secret_key: &str,
+) -> Result<String, GlyphError> {
+    let bytes = std::fs::read(path).map_err(GlyphError::from)?;
+    let b64 = STANDARD.encode(&bytes);
+    recognize_cloud_base64(&b64, provider, api_key, secret_key)
+}
+
+/// 从 base64 图片识别（截图联动用）。
+pub fn recognize_cloud_base64(
+    image_base64: &str,
     provider: &str,
     api_key: &str,
     secret_key: &str,
@@ -20,17 +33,12 @@ pub fn recognize_cloud(
         return Err(GlyphError::Internal("云端 OCR 未配置 API Key / Secret Key".into()));
     }
     match provider {
-        "baidu" => baidu_ocr(path, api_key, secret_key),
-        "ali" | "tencent" => Err(GlyphError::Internal(
-            "该服务商适配器即将支持（当前已接百度）".into(),
-        )),
+        "baidu" => baidu_ocr(image_base64, api_key, secret_key),
+        "ali" | "tencent" => {
+            Err(GlyphError::Internal("该服务商适配器即将支持（当前已接百度）".into()))
+        }
         other => Err(GlyphError::Internal(format!("未知云端服务商: {other}"))),
     }
-}
-
-fn read_image_base64(path: &Path) -> Result<String, GlyphError> {
-    let bytes = std::fs::read(path).map_err(GlyphError::from)?;
-    Ok(STANDARD.encode(&bytes))
 }
 
 fn baidu_token(api_key: &str, secret_key: &str) -> Result<String, GlyphError> {
@@ -49,15 +57,14 @@ fn baidu_token(api_key: &str, secret_key: &str) -> Result<String, GlyphError> {
         .ok_or_else(|| GlyphError::Internal(format!("百度取 token 失败: {resp}")))
 }
 
-fn baidu_ocr(path: &Path, api_key: &str, secret_key: &str) -> Result<String, GlyphError> {
+fn baidu_ocr(image_b64: &str, api_key: &str, secret_key: &str) -> Result<String, GlyphError> {
     let token = baidu_token(api_key, secret_key)?;
-    let b64 = read_image_base64(path)?;
     let url = format!(
         "https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic?access_token={}",
         token
     );
     let resp: Value = ureq::post(&url)
-        .send_form(&[("image", b64.as_str())])
+        .send_form(&[("image", image_b64)])
         .map_err(|e| GlyphError::Internal(format!("百度 OCR 请求失败: {e}")))?
         .into_json()
         .map_err(|e| GlyphError::Internal(format!("百度 OCR 解析失败: {e}")))?;

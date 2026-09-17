@@ -116,7 +116,15 @@ async function recognizeShot(c: CaptureResult) {
   ocrBusy.value = true
   ocrError.value = null
   try {
-    const txt = await invoke<string>('ocr_recognize_base64', { imageBase64: c.png_base64 })
+    const txt =
+      settings.ocrEngine === 'cloud'
+        ? await invoke<string>('ocr_recognize_cloud_base64', {
+            imageBase64: c.png_base64,
+            provider: settings.ocrProvider,
+            apiKey: settings.ocrApiKey,
+            secretKey: settings.ocrSecretKey,
+          })
+        : await invoke<string>('ocr_recognize_base64', { imageBase64: c.png_base64 })
     ocrResults.value = { ...ocrResults.value, [c.index]: txt || '' }
   } catch (e: unknown) {
     ocrError.value = t('screenshot.ocrFailed', { msg: String(e) })
