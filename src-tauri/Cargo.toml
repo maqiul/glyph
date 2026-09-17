@@ -46,6 +46,7 @@ base64 = "0.23"
 # 云端 OCR HTTP 客户端（纯 Rust TLS）
 ureq = { version = "2", features = ["json"] }
 oar-ocr = { version = "0.9", features = ["auto-download"] }
+lopdf = "0.36.0"
 
 [profile.release]
 panic = "abort"

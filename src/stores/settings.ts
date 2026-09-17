@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 export type EditorMode = 'edit' | 'preview' | 'split'
 export type Theme = 'light' | 'dark'
 export type FontSize = 'S' | 'M' | 'L' | 'XL'
-export type ActiveTool = 'markdown' | 'screenshot' | 'ocr' | 'dev'
+export type ActiveTool = 'markdown' | 'screenshot' | 'ocr' | 'dev' | 'pdf'
 
 interface SettingsState {
   activeTool: ActiveTool

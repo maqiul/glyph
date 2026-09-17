@@ -4,6 +4,7 @@ import MarkdownTool from './components/tools/MarkdownTool.vue'
 import ScreenshotTool from './components/tools/ScreenshotTool.vue'
 import OcrTool from './components/tools/OcrTool.vue'
 import DevTool from './components/tools/DevTool.vue'
+import PdfTool from './components/tools/PdfTool.vue'
 
 export interface ToolDef {
   id: ActiveTool
@@ -41,5 +42,11 @@ export const TOOLS: ToolDef[] = [
     labelKey: 'tools.dev',
     icon: 'M8 9l-4 3 4 3 M16 9l4 3-4 3 M13 7l-2 10',
     component: DevTool,
+  },
+  {
+    id: 'pdf',
+    labelKey: 'tools.pdf',
+    icon: 'M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M13 3v6h6 M8 16h6',
+    component: PdfTool,
   },
 ]

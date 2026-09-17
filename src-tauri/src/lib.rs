@@ -24,6 +24,7 @@ pub mod error;
 pub mod markdown;
 pub mod ocr;
 pub mod ocr_cloud;
+pub mod pdf;
 pub mod screenshot;
 
 /// 全局唤起快捷键（app 在后台/最小化时把它带回前台）
@@ -63,6 +64,11 @@ pub fn run() {
             commands::ocr_recognize_cloud,
             commands::ocr_recognize_cloud_base64,
             commands::write_file_base64,
+            commands::pdf_merge,
+            commands::pdf_split,
+            commands::pdf_rotate,
+            commands::pdf_delete,
+            commands::pdf_page_count,
         ])
         .setup(|app| {
             log::info!("Glyph 启动 v{}", env!("CARGO_PKG_VERSION"));

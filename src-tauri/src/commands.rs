@@ -180,3 +180,49 @@ pub async fn create_markdown_file(path: String) -> Result<(), GlyphError> {
     .await
     .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
 }
+
+// ---- PDF 操作 ----
+
+/// 合并多个 PDF
+#[command]
+pub async fn pdf_merge(paths: Vec<String>, out: String) -> Result<(), GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || crate::pdf::merge(&paths, std::path::Path::new(&out)))
+        .await
+        .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
+/// 逐页拆分，返回生成的文件路径
+#[command]
+pub async fn pdf_split(path: String, out_dir: String) -> Result<Vec<String>, GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::pdf::split(std::path::Path::new(&path), std::path::Path::new(&out_dir))
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
+/// 旋转指定页
+#[command]
+pub async fn pdf_rotate(path: String, pages: String, angle: i32, out: String) -> Result<(), GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::pdf::rotate(std::path::Path::new(&path), &pages, angle, std::path::Path::new(&out))
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
+/// 删除指定页
+#[command]
+pub async fn pdf_delete(path: String, pages: String, out: String) -> Result<(), GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::pdf::delete(std::path::Path::new(&path), &pages, std::path::Path::new(&out))
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
+/// 读取 PDF 页数
+#[command]
+pub fn pdf_page_count(path: String) -> Result<u32, GlyphError> {
+    crate::pdf::page_count(std::path::Path::new(&path))
+}
