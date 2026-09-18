@@ -29,10 +29,9 @@ jobs:
           - platform: 'windows-latest'
             args: '--bundles nsis'
             rustTargets: ''
-          # Linux：deb / AppImage
-          - platform: 'ubuntu-22.04'
-            args: '--bundles deb appimage'
-            rustTargets: ''
+          # Linux 暂搁：xcap→pipewire→libspa 0.10 需 PipeWire≥1.2 头文件，
+          # GitHub 托管 ubuntu runner（22.04=0.3.48 / 24.04=1.0.5）均不够，
+          # 需 Fedora41/Arch 容器或自托管 runner 才能构建（后续单独支持）。
 
     runs-on: ${{ matrix.platform }}
 
@@ -61,18 +60,6 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
-      - name: Install Linux system dependencies
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev build-essential curl wget file \
-            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
-            libxcb1-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev \
-            libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
-            libpipewire-0.3-dev \
-            patchelf pkg-config
-
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
@@ -84,7 +71,7 @@ jobs:
           # 仅当由 tag 触发时创建/发布 Release；手动触发时只上传 Artifacts
           tagName: ${{ github.ref_name }}
           releaseName: 'Glyph ${{ github.ref_name }}'
-          releaseBody: '多平台安装包：Windows(.exe)、macOS(Universal .dmg)、Linux(.deb/.AppImage)。下载对应系统的文件即可安装。'
+          releaseBody: '多平台安装包：Windows(.exe)、macOS(Universal .dmg)。下载对应系统的文件即可安装。（Linux 因上游 PipeWire/libspa 依赖需 PipeWire≥1.2，暂缺，后续单独支持）'
           releaseDraft: false
           prerelease: false
           includeRelease: ${{ github.ref_type == 'tag' }}
