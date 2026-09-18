@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { open, save } from '@tauri-apps/plugin-dialog'
+import { useSettingsStore } from '../../stores/settings'
 
 const { t } = useI18n()
+const settings = useSettingsStore()
 type Tab = 'merge' | 'split' | 'rotate' | 'delete'
 const active = ref<Tab>('merge')
 const busy = ref(false)
@@ -100,6 +103,25 @@ async function doDelete() {
 function base(p: string) {
   return p.split(/[/\\]/).pop() || p
 }
+
+let unDrop: (() => void) | null = null
+onMounted(async () => {
+  unDrop = await listen<{ path: string }>('app-file-drop', (e) => {
+    if (settings.activeTool !== 'pdf') return
+    const p = e.payload.path
+    if (!/\.pdf$/i.test(p)) return
+    if (active.value === 'merge') {
+      if (!mergeFiles.value.includes(p)) mergeFiles.value = [...mergeFiles.value, p]
+    } else if (active.value === 'split') {
+      splitFile.value = p
+    } else if (active.value === 'rotate') {
+      rotFile.value = p
+    } else if (active.value === 'delete') {
+      delFile.value = p
+    }
+  })
+})
+onUnmounted(() => unDrop?.())
 </script>
 
 <template>

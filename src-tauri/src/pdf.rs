@@ -38,6 +38,11 @@ pub fn merge(paths: &[String], out: &Path) -> Result<(), GlyphError> {
             if id.0 >= next_id {
                 next_id = id.0 + 1;
             }
+            // 关键：手动 insert 不更新 max_id，必须同步，否则后续 new_object_id
+            // 生成的 Pages/Catalog id 会与内容对象撞车 → 覆盖 → 空白
+            if id.0 > merged.max_id {
+                merged.max_id = id.0;
+            }
             merged.objects.insert(id, obj);
         }
         all_pages.extend(page_ids);

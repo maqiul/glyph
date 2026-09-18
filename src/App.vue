@@ -2,6 +2,8 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
+import { emit } from '@tauri-apps/api/event'
+import { getCurrentWebview } from '@tauri-apps/api/webview'
 import ActivityBar from './components/ActivityBar.vue'
 import CommandPalette from './components/CommandPalette.vue'
 import { TOOLS } from './tools'
@@ -63,14 +65,27 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
+let unlistenDrag: (() => void) | null = null
+
 onMounted(async () => {
   await bootstrap()
   document.documentElement.setAttribute('data-theme', settings.theme)
   window.addEventListener('keydown', handleKeydown)
+  try {
+    unlistenDrag = await getCurrentWebview().onDragDropEvent((e) => {
+      if (e.payload.type === 'drop') {
+        const first = e.payload.paths[0]
+        if (first) emit('app-file-drop', { path: first })
+      }
+    })
+  } catch (e) {
+    console.warn('drag listener failed:', e)
+  }
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
+  unlistenDrag?.()
 })
 </script>
 

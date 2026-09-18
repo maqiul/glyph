@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
-import { getCurrentWebview } from '@tauri-apps/api/webview'
+import { listen } from '@tauri-apps/api/event'
 import Reader from '../Reader.vue'
 import { useSettingsStore } from '../../stores/settings'
 import { savePersisted } from '../../stores/persistent'
@@ -141,16 +141,9 @@ function handleKeydown(e: KeyboardEvent) {
 let unlistenDrag: (() => void) | null = null
 
 onMounted(async () => {
-  try {
-    unlistenDrag = await getCurrentWebview().onDragDropEvent((event) => {
-      if (event.payload.type === 'drop') {
-        const first = event.payload.paths[0]
-        if (first) loadPath(first)
-      }
-    })
-  } catch (e) {
-    console.warn('drag-drop listener failed:', e)
-  }
+  unlistenDrag = await listen<{ path: string }>('app-file-drop', (e) => {
+    if (settings.activeTool === 'markdown') loadPath(e.payload.path)
+  })
   window.addEventListener('keydown', handleKeydown)
 })
 

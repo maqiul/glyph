@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { useSettingsStore } from '../../stores/settings'
 import { savePersisted } from '../../stores/persistent'
@@ -95,6 +96,16 @@ async function copy() {
     console.warn('clipboard failed:', e)
   }
 }
+
+let unDrop: (() => void) | null = null
+onMounted(async () => {
+  unDrop = await listen<{ path: string }>('app-file-drop', (e) => {
+    if (settings.activeTool === 'ocr' && /\.(png|jpe?g|bmp|webp|gif|tiff?)$/i.test(e.payload.path)) {
+      recognize(e.payload.path)
+    }
+  })
+})
+onUnmounted(() => unDrop?.())
 </script>
 
 <template>
