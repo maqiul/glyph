@@ -35,6 +35,12 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
 
+    # 加速 CI：仅在本流水线内放松 release profile（不改仓库配置，本机构建仍用完整优化）。
+    # fat LTO + codegen-units=1 是编译耗时大头，关掉后 crate 内可并行、链接时优化关闭。
+    env:
+      CARGO_PROFILE_RELEASE_LTO: 'false'
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: '16'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
