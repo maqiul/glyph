@@ -70,6 +70,7 @@ jobs:
             libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
             libxcb1-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev \
             libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
+            libpipewire-0.3-dev \
             patchelf pkg-config
 
       - name: Install frontend dependencies
