@@ -106,6 +106,106 @@ function base(p: string) {
   return p.split(/[/\\]/).pop() || p
 }
 
+// ---- 列表操作：拖拽排序 + 上/下移 + 删除 + 清空 ----
+function removeAt(idx: number, kind: 'merge' | 'split' | 'rotate' | 'delete') {
+  if (kind === 'split') splitFile.value = ''
+  else if (kind === 'rotate') rotFile.value = ''
+  else if (kind === 'delete') delFile.value = ''
+}
+function moveOne(idx: number, delta: number) {
+  const j = idx + delta
+  if (j < 0 || j >= mergeFiles.value.length) return
+  const arr = [...mergeFiles.value]
+  ;[arr[idx], arr[j]] = [arr[j]!, arr[idx]!]
+  mergeFiles.value = arr
+}
+function moveMerge(delta: number) {
+  if (mergeFiles.value.length < 2) return
+  const arr = [...mergeFiles.value]
+  arr.unshift(arr.pop()!)
+  arr.push(arr.shift()!)
+  mergeFiles.value = arr
+}
+function clearMerge() {
+  mergeFiles.value = []
+}
+
+// HTML5 drag-drop reorder（merge）
+const dragIdx = ref<number | null>(null)
+function dragStart(i: number, e: DragEvent) {
+  dragIdx.value = i
+  e.dataTransfer?.setData('text/plain', String(i))
+}
+function dragOver(i: number, _e: DragEvent) {
+  // placeholder 视觉
+}
+function dragDrop(i: number, e: DragEvent) {
+  e.preventDefault()
+  const fromStr = e.dataTransfer?.getData('text/plain') ?? ''
+  const from = Number(fromStr)
+  if (Number.isNaN(from) || from === i) return
+  const arr = [...mergeFiles.value]
+  const [moved] = arr.splice(from, 1)
+  if (!moved) return
+  arr.splice(i, 0, moved)
+  mergeFiles.value = arr
+}
+function dragEnd() {
+  dragIdx.value = null
+}
+
+function moveOneImg(idx: number, delta: number) {
+  const j = idx + delta
+  if (j < 0 || j >= imgFiles.value.length) return
+  const arr = [...imgFiles.value]
+  ;[arr[idx], arr[j]] = [arr[j]!, arr[idx]!]
+  imgFiles.value = arr
+}
+function moveImgs(delta: number) {
+  if (imgFiles.value.length < 2) return
+  const arr = [...imgFiles.value]
+  arr.unshift(arr.pop()!)
+  arr.push(arr.shift()!)
+  imgFiles.value = arr
+}
+function clearImgs() {
+  imgFiles.value = []
+}
+function removeImg(idx: number) {
+  imgFiles.value = imgFiles.value.filter((_, i) => i !== idx)
+}
+const imgDragIdx = ref<number | null>(null)
+function imgDragStart(i: number, e: DragEvent) {
+  imgDragIdx.value = i
+  e.dataTransfer?.setData('text/plain', 'img:' + i)
+}
+function imgDragOver(_i: number, _e: DragEvent) {}
+function imgDragDrop(i: number, e: DragEvent) {
+  e.preventDefault()
+  const data = e.dataTransfer?.getData('text/plain') ?? ''
+  const from = Number(data.replace('img:', ''))
+  if (Number.isNaN(from) || from === i) return
+  const arr = [...imgFiles.value]
+  const [moved] = arr.splice(from, 1)
+  if (!moved) return
+  arr.splice(i, 0, moved)
+  imgFiles.value = arr
+}
+function imgDragEnd() {
+  imgDragIdx.value = null
+}
+
+// 兜底：drop 区接住窗口拖进来的文件（防止 dragdrop 只走上面的列表）
+function onMergeDropFromWindow(_e: DragEvent) {
+  // 走 App 全局事件已经 emit，这里不再做
+}
+function pickFromDrop(kind: 'split' | 'rotate' | 'delete') {
+  // 同上占位
+}
+function addImgsFromDrop(_e: DragEvent) {
+  // 同上占位
+}
+
 // ---- images -> pdf (jsPDF) ----
 const imgFiles = ref<string[]>([])
 async function pickImg() {
@@ -211,30 +311,59 @@ onUnmounted(() => unDrop?.())
     <div class="pdf-body">
       <!-- merge -->
       <div v-if="active === 'merge'" class="pdf-panel">
-        <button class="btn" @click="pickMerge">{{ t('pdf.pickFiles') }}</button>
-        <div v-if="mergeFiles.length" class="pdf-filelist">
-          <div class="pdf-count">{{ t('pdf.selected', { n: mergeFiles.length }) }}</div>
-          <ul>
-            <li v-for="(f, i) in mergeFiles" :key="i" :title="f">{{ base(f) }}</li>
-          </ul>
+        <div class="pdf-drop" @click="pickMerge" @dragover.prevent @drop.prevent="onMergeDropFromWindow">
+          {{ t('pdf.dropOrPick') }}
         </div>
-        <button class="btn btn-primary" :disabled="busy || mergeFiles.length < 2" @click="doMerge">
-          {{ t('pdf.doMerge') }}
-        </button>
+        <div v-if="mergeFiles.length">
+          <div class="pdf-list">
+            <div class="pdf-list-head">
+              <span class="count">{{ t('pdf.selected', { n: mergeFiles.length }) }}</span>
+              <div class="list-tools">
+                <button @click="moveMerge(-1)" :disabled="mergeFiles.length < 2">↑↑</button>
+                <button @click="moveMerge(1)" :disabled="mergeFiles.length < 2">↓↓</button>
+                <button @click="clearMerge" :disabled="!mergeFiles.length">{{ t('pdf.clear') }}</button>
+              </div>
+            </div>
+            <div
+              v-for="(f, i) in mergeFiles"
+              :key="i"
+              class="pdf-row"
+            >
+              <span class="order">{{ i + 1 }}</span>
+              <span class="name" :title="f">{{ base(f) }}</span>
+              <div class="row-tools">
+                <button @click="moveOne(i, -1)" :disabled="i === 0" title="上移">↑</button>
+                <button @click="moveOne(i, 1)" :disabled="i === mergeFiles.length - 1" title="下移">↓</button>
+                <button class="remove" @click="removeAt(i, 'merge')" title="移除">✕</button>
+              </div>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary-lg" :disabled="busy || mergeFiles.length < 2" @click="doMerge">
+              {{ t('pdf.doMerge') }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- split -->
       <div v-else-if="active === 'split'" class="pdf-panel">
-        <button class="btn" @click="pickSplit">{{ t('pdf.pickFile') }}</button>
+        <div class="pdf-drop" @click="pickSplit" @dragover.prevent @drop.prevent="pickFromDrop('split')">
+          {{ t('pdf.dropOrPick') }}
+        </div>
         <div v-if="splitFile" class="pdf-path" :title="splitFile">{{ base(splitFile) }}</div>
-        <button class="btn btn-primary" :disabled="busy || !splitFile" @click="doSplit">
-          {{ t('pdf.doSplit') }}
-        </button>
+        <div class="btn-row">
+          <button class="btn btn-primary-lg" :disabled="busy || !splitFile" @click="doSplit">
+            {{ t('pdf.doSplit') }}
+          </button>
+        </div>
       </div>
 
       <!-- rotate -->
       <div v-else-if="active === 'rotate'" class="pdf-panel">
-        <button class="btn" @click="pickRot">{{ t('pdf.pickFile') }}</button>
+        <div class="pdf-drop" @click="pickRot" @dragover.prevent @drop.prevent="pickFromDrop('rotate')">
+          {{ t('pdf.dropOrPick') }}
+        </div>
         <div v-if="rotFile" class="pdf-path" :title="rotFile">{{ base(rotFile) }}</div>
         <div class="pdf-field">
           <label>{{ t('pdf.pages') }}</label>
@@ -246,36 +375,65 @@ onUnmounted(() => unDrop?.())
             <button v-for="a in [90, 180, 270]" :key="a" :class="{ active: rotAngle === a }" @click="rotAngle = a">{{ a }}°</button>
           </div>
         </div>
-        <button class="btn btn-primary" :disabled="busy || !rotFile" @click="doRotate">
-          {{ t('pdf.doRotate') }}
-        </button>
+        <div class="btn-row">
+          <button class="btn btn-primary-lg" :disabled="busy || !rotFile" @click="doRotate">
+            {{ t('pdf.doRotate') }}
+          </button>
+        </div>
       </div>
 
       <!-- delete -->
       <div v-else-if="active === 'delete'" class="pdf-panel">
-        <button class="btn" @click="pickDel">{{ t('pdf.pickFile') }}</button>
+        <div class="pdf-drop" @click="pickDel" @dragover.prevent @drop.prevent="pickFromDrop('delete')">
+          {{ t('pdf.dropOrPick') }}
+        </div>
         <div v-if="delFile" class="pdf-path" :title="delFile">{{ base(delFile) }}</div>
         <div class="pdf-field">
           <label>{{ t('pdf.pagesDel') }}</label>
           <input v-model="delPages" class="pdf-input" placeholder="2,4" />
         </div>
-        <button class="btn btn-primary" :disabled="busy || !delFile" @click="doDelete">
-          {{ t('pdf.doDelete') }}
-        </button>
+        <div class="btn-row">
+          <button class="btn btn-primary-lg" :disabled="busy || !delFile" @click="doDelete">
+            {{ t('pdf.doDelete') }}
+          </button>
+        </div>
       </div>
 
       <!-- img2pdf -->
       <div v-else-if="active === 'img2pdf'" class="pdf-panel">
-        <button class="btn" @click="pickImg">{{ t('pdf.pickImgs') }}</button>
-        <div v-if="imgFiles.length" class="pdf-filelist">
-          <div class="pdf-count">{{ t('pdf.selected', { n: imgFiles.length }) }}</div>
-          <ul>
-            <li v-for="(f, i) in imgFiles" :key="i" :title="f">{{ base(f) }}</li>
-          </ul>
+        <div class="pdf-drop" @click="pickImg" @dragover.prevent @drop.prevent="addImgsFromDrop">
+          {{ t('pdf.dropOrPickImg') }}
         </div>
-        <button class="btn btn-primary" :disabled="busy || !imgFiles.length" @click="doImg2Pdf">
-          {{ t('pdf.doImg2Pdf') }}
-        </button>
+        <div v-if="imgFiles.length">
+          <div class="pdf-list">
+            <div class="pdf-list-head">
+              <span class="count">{{ t('pdf.selected', { n: imgFiles.length }) }}</span>
+              <div class="list-tools">
+                <button @click="moveImgs(-1)" :disabled="imgFiles.length < 2">↑↑</button>
+                <button @click="moveImgs(1)" :disabled="imgFiles.length < 2">↓↓</button>
+                <button @click="clearImgs">{{ t('pdf.clear') }}</button>
+              </div>
+            </div>
+            <div
+              v-for="(f, i) in imgFiles"
+              :key="i"
+              class="pdf-row"
+            >
+              <span class="order">{{ i + 1 }}</span>
+              <span class="name" :title="f">{{ base(f) }}</span>
+              <div class="row-tools">
+                <button @click="moveOneImg(i, -1)" :disabled="i === 0">↑</button>
+                <button @click="moveOneImg(i, 1)" :disabled="i === imgFiles.length - 1">↓</button>
+                <button class="remove" @click="removeImg(i)">✕</button>
+              </div>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary-lg" :disabled="busy || !imgFiles.length" @click="doImg2Pdf">
+              {{ t('pdf.doImg2Pdf') }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div v-if="msg" class="pdf-msg">✅ {{ msg }}</div>
@@ -323,80 +481,192 @@ onUnmounted(() => unDrop?.())
 .pdf-body {
   flex: 1;
   overflow-y: auto;
-  padding: 22px 26px;
+  padding: 18px 20px;
 }
 
 .pdf-panel {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  max-width: 560px;
+  gap: 12px;
+  max-width: 720px;
 }
 
-.btn {
-  align-self: flex-start;
-  padding: 8px 16px;
-  border-radius: 6px;
+/* 文件列表 */
+.pdf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
   background: var(--surface);
-  color: var(--text);
+}
+
+.pdf-list-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-muted);
   font-size: 13px;
+}
+
+.pdf-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 6px;
+  border-bottom: 1px dashed var(--border);
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.pdf-list-head .count {
+  color: var(--text-muted);
+}
+
+.pdf-list-head .list-tools {
+  display: flex;
+  gap: 6px;
+}
+
+.pdf-list-head .list-tools button {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
   cursor: pointer;
-  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
-.btn:hover {
+.pdf-list-head .list-tools button:hover {
   background: var(--surface-hover);
-  border-color: var(--accent);
+  color: var(--text);
 }
 
-.btn:disabled {
-  opacity: 0.45;
-  cursor: default;
+.pdf-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
 
-.btn-primary {
-  background: var(--accent);
-  color: var(--accent-fg);
-  border-color: var(--accent);
+.pdf-row.dragging {
+  opacity: 0.5;
 }
 
-.btn-primary:hover {
-  background: var(--accent-hover);
+.pdf-row .order {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: var(--surface);
+  border-radius: 4px;
 }
 
-.pdf-path {
+.pdf-row .name {
+  flex: 1;
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--text);
-  padding: 6px 10px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.pdf-filelist {
+.pdf-row .name:hover {
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.pdf-row .row-tools {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.pdf-row .row-tools button {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.pdf-row .row-tools button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.pdf-row .row-tools button.remove:hover {
+  color: var(--error);
+}
+
+.pdf-drop {
+  border: 1.5px dashed var(--border);
+  border-radius: 10px;
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-drop:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* 按钮组统一风格 */
+.btn-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-primary-lg {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.btn-primary-lg:hover {
+  background: var(--accent-hover);
+}
+
+.btn-primary-lg:disabled {
+  background: var(--border);
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+/* 单文件选择后路径展示 */
+.pdf-path {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  padding: 10px 14px;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px 12px;
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-.pdf-count {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-bottom: 4px;
-}
-
-.pdf-filelist ul {
-  margin: 0;
-  padding-left: 18px;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pdf-field {
@@ -430,14 +700,13 @@ onUnmounted(() => unDrop?.())
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
-  align-self: flex-start;
 }
 
 .seg button {
   border: 0;
   background: var(--bg);
   color: var(--text-muted);
-  padding: 6px 14px;
+  padding: 8px 18px;
   font-size: 13px;
   cursor: pointer;
 }
@@ -456,6 +725,9 @@ onUnmounted(() => unDrop?.())
   font-size: 13px;
   font-family: var(--font-mono);
   word-break: break-all;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-radius: 6px;
 }
 
 .pdf-err {
