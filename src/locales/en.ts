@@ -165,5 +165,9 @@ export default {
     splitDone: 'Split into: {dir}',
     failed: 'Operation failed: {msg}',
     selected: '{n} selected',
+    img2pdf: 'Images to PDF',
+    pickImgs: 'Pick images (multi)',
+    doImg2Pdf: 'Generate PDF',
+    needImg: 'Pick images first',
   },
 }

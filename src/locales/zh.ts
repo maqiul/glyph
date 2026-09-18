@@ -165,5 +165,9 @@ export default {
     splitDone: '已逐页拆分到：{dir}',
     failed: '操作失败：{msg}',
     selected: '已选 {n} 个',
+    img2pdf: '图片转PDF',
+    pickImgs: '选择图片（可多选）',
+    doImg2Pdf: '生成 PDF',
+    needImg: '请先选择图片',
   },
 }

@@ -4,11 +4,13 @@ import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { open, save } from '@tauri-apps/plugin-dialog'
+import { readFile } from '@tauri-apps/plugin-fs'
+import { jsPDF } from 'jspdf'
 import { useSettingsStore } from '../../stores/settings'
 
 const { t } = useI18n()
 const settings = useSettingsStore()
-type Tab = 'merge' | 'split' | 'rotate' | 'delete'
+type Tab = 'merge' | 'split' | 'rotate' | 'delete' | 'img2pdf'
 const active = ref<Tab>('merge')
 const busy = ref(false)
 const msg = ref('')
@@ -104,11 +106,85 @@ function base(p: string) {
   return p.split(/[/\\]/).pop() || p
 }
 
+// ---- images -> pdf (jsPDF) ----
+const imgFiles = ref<string[]>([])
+async function pickImg() {
+  const sel = await open({
+    multiple: true,
+    filters: [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp'] }],
+  })
+  if (!sel) return
+  imgFiles.value = Array.isArray(sel) ? sel : [sel]
+}
+function toBase64(bytes: Uint8Array): string {
+  let bin = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...Array.from(bytes.subarray(i, i + chunk)))
+  }
+  return btoa(bin)
+}
+function imgToPng(path: string): Promise<{ dataUrl: string; w: number; h: number }> {
+  return new Promise((resolve, reject) => {
+    readFile(path)
+      .then((bytes) => {
+        const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+        const ext = (path.split('.').pop() || 'png').toLowerCase()
+        const mime =
+          ext === 'jpg' || ext === 'jpeg' ? 'jpeg' : ext === 'webp' ? 'webp' : ext === 'bmp' ? 'bmp' : 'png'
+        const url = `data:image/${mime};base64,${toBase64(u8)}`
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          canvas.width = img.naturalWidth
+          canvas.height = img.naturalHeight
+          const ctx = canvas.getContext('2d')
+          if (!ctx) {
+            reject(new Error('canvas ctx'))
+            return
+          }
+          ctx.drawImage(img, 0, 0)
+          resolve({ dataUrl: canvas.toDataURL('image/png'), w: canvas.width, h: canvas.height })
+        }
+        img.onerror = () => reject(new Error('load image failed'))
+        img.src = url
+      })
+      .catch(reject)
+  })
+}
+async function doImg2Pdf() {
+  if (imgFiles.value.length === 0) {
+    err.value = t('pdf.needImg')
+    return
+  }
+  const out = await save({ defaultPath: 'images.pdf', filters: [{ name: 'PDF', extensions: ['pdf'] }] })
+  if (!out) return
+  const files = imgFiles.value
+  await run(async () => {
+    let pdf: jsPDF | null = null
+    for (const p of files) {
+      const { dataUrl, w, h } = await imgToPng(p)
+      if (!pdf) pdf = new jsPDF({ unit: 'pt', format: [w, h] })
+      else pdf.addPage([w, h])
+      pdf.addImage(dataUrl, 'PNG', 0, 0, w, h)
+    }
+    if (!pdf) throw new Error('no image')
+    const uri = pdf.output('datauristring')
+    const b64 = uri.split(',')[1] ?? ''
+    await invoke('write_file_base64', { path: out, dataBase64: b64 })
+  })
+  msg.value = t('pdf.done', { out })
+}
+
 let unDrop: (() => void) | null = null
 onMounted(async () => {
   unDrop = await listen<{ path: string }>('app-file-drop', (e) => {
     if (settings.activeTool !== 'pdf') return
     const p = e.payload.path
+    if (active.value === 'img2pdf' && /\.(png|jpe?g|webp|bmp)$/i.test(p)) {
+      if (!imgFiles.value.includes(p)) imgFiles.value = [...imgFiles.value, p]
+      return
+    }
     if (!/\.pdf$/i.test(p)) return
     if (active.value === 'merge') {
       if (!mergeFiles.value.includes(p)) mergeFiles.value = [...mergeFiles.value, p]
@@ -127,7 +203,7 @@ onUnmounted(() => unDrop?.())
 <template>
   <div class="pdf-tool">
     <div class="pdf-tabs">
-      <button v-for="tab in (['merge', 'split', 'rotate', 'delete'] as const)" :key="tab" :class="{ active: active === tab }" @click="active = tab">
+      <button v-for="tab in (['merge', 'split', 'rotate', 'delete', 'img2pdf'] as const)" :key="tab" :class="{ active: active === tab }" @click="active = tab">
         {{ t(`pdf.${tab}`) }}
       </button>
     </div>
@@ -185,6 +261,20 @@ onUnmounted(() => unDrop?.())
         </div>
         <button class="btn btn-primary" :disabled="busy || !delFile" @click="doDelete">
           {{ t('pdf.doDelete') }}
+        </button>
+      </div>
+
+      <!-- img2pdf -->
+      <div v-else-if="active === 'img2pdf'" class="pdf-panel">
+        <button class="btn" @click="pickImg">{{ t('pdf.pickImgs') }}</button>
+        <div v-if="imgFiles.length" class="pdf-filelist">
+          <div class="pdf-count">{{ t('pdf.selected', { n: imgFiles.length }) }}</div>
+          <ul>
+            <li v-for="(f, i) in imgFiles" :key="i" :title="f">{{ base(f) }}</li>
+          </ul>
+        </div>
+        <button class="btn btn-primary" :disabled="busy || !imgFiles.length" @click="doImg2Pdf">
+          {{ t('pdf.doImg2Pdf') }}
         </button>
       </div>
 
