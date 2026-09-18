@@ -23,15 +23,15 @@ jobs:
         include:
           # macOS：构建 Universal（Intel + Apple 芯片）单一包
           - platform: 'macos-latest'
-            args: '--target universal-apple-darwin --bundles all'
+            args: '--target universal-apple-darwin --bundles dmg'
             rustTargets: 'aarch64-apple-darwin,x86_64-apple-darwin'
-          # Windows：NSIS(.exe) + MSI
+          # Windows：NSIS 安装包(.exe)
           - platform: 'windows-latest'
-            args: '--bundles all'
+            args: '--bundles nsis'
             rustTargets: ''
-          # Linux：deb / rpm / AppImage
+          # Linux：deb / AppImage
           - platform: 'ubuntu-22.04'
-            args: '--bundles all'
+            args: '--bundles deb appimage'
             rustTargets: ''
 
     runs-on: ${{ matrix.platform }}
@@ -78,7 +78,7 @@ jobs:
           # 仅当由 tag 触发时创建/发布 Release；手动触发时只上传 Artifacts
           tagName: ${{ github.ref_name }}
           releaseName: 'Glyph ${{ github.ref_name }}'
-          releaseBody: '多平台安装包：Windows(.exe/.msi)、macOS(Universal .dmg)、Linux(.deb/.rpm/.AppImage)。下载对应系统的文件即可安装。'
+          releaseBody: '多平台安装包：Windows(.exe)、macOS(Universal .dmg)、Linux(.deb/.AppImage)。下载对应系统的文件即可安装。'
           releaseDraft: false
           prerelease: false
           includeRelease: ${{ github.ref_type == 'tag' }}
