@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
@@ -36,7 +36,7 @@ async function capture() {
     // 默认自动存到目标目录（未设保存目录则存系统下载）
     for (const c of caps) await saveToDir(c)
   } catch (e: unknown) {
-    const msg = typeof e === 'string' ? e : (e as any)?.message ?? JSON.stringify(e)
+    const msg = typeof e === 'string' ? e : ((e as any)?.message ?? JSON.stringify(e))
     error.value = t('screenshot.failed', { msg })
   } finally {
     capturing.value = false
@@ -78,6 +78,16 @@ async function saveAs(c: CaptureResult) {
     setTimeout(() => (saveToast.value = null), 2500)
   } catch (e: unknown) {
     error.value = t('screenshot.saveFailed', { msg: String(e) })
+  }
+}
+
+async function copyShot(c: CaptureResult) {
+  try {
+    await invoke('copy_image_to_clipboard', { imageBase64: c.png_base64 })
+    saveToast.value = t('screenshot.copiedImg')
+    setTimeout(() => (saveToast.value = null), 2500)
+  } catch (e: unknown) {
+    error.value = t('screenshot.copyFailed', { msg: String(e) })
   }
 }
 
@@ -153,27 +163,29 @@ async function regionCapture() {
     const existing = await WebviewWindow.getByLabel(label)
     if (existing) await existing.close()
 
-    const unRegion = await listen<{ png_base64: string; width: number; height: number; monitor: number }>(
-      'capture-region',
-      async (e) => {
-        const p = e.payload
-        const newCap: CaptureResult = {
-          index: captures.value.length,
-          name: `Region ${p.width}×${p.height}`,
-          x: 0,
-          y: 0,
-          width: p.width,
-          height: p.height,
-          png_base64: p.png_base64,
-        }
-        captures.value = [...captures.value, newCap]
-        unRegion()
-        unCancel()
-        await restoreMain()
-        await saveToDir(newCap)
-        capturing.value = false
-      },
-    )
+    const unRegion = await listen<{
+      png_base64: string
+      width: number
+      height: number
+      monitor: number
+    }>('capture-region', async (e) => {
+      const p = e.payload
+      const newCap: CaptureResult = {
+        index: captures.value.length,
+        name: `Region ${p.width}×${p.height}`,
+        x: 0,
+        y: 0,
+        width: p.width,
+        height: p.height,
+        png_base64: p.png_base64,
+      }
+      captures.value = [...captures.value, newCap]
+      unRegion()
+      unCancel()
+      await restoreMain()
+      await saveToDir(newCap)
+      capturing.value = false
+    })
     const unCancel = await listen('capture-cancelled', async () => {
       unRegion()
       unCancel()
@@ -197,6 +209,16 @@ async function regionCapture() {
     capturing.value = false
   }
 }
+
+// 全局截图快捷键：无论组件是否刚挂载，消费 pendingCapture 标记后自动发起框选
+function consumePendingCapture() {
+  if (settings.pendingCapture) {
+    settings.pendingCapture = false
+    void regionCapture()
+  }
+}
+onMounted(consumePendingCapture)
+watch(() => settings.pendingCapture, consumePendingCapture)
 </script>
 
 <template>
@@ -218,7 +240,9 @@ async function regionCapture() {
 
     <div class="shot-config">
       <span class="cfg-label">{{ t('screenshot.dirLabel') }}</span>
-      <button class="btn btn-small dir-btn" :title="settings.screenshotDir" @click="chooseDir">{{ dirLabel }}</button>
+      <button class="btn btn-small dir-btn" :title="settings.screenshotDir" @click="chooseDir">
+        {{ dirLabel }}
+      </button>
       <button v-if="settings.screenshotDir" class="btn btn-small" @click="clearDir">✕</button>
     </div>
 
@@ -240,7 +264,12 @@ async function regionCapture() {
           <div class="shot-card-foot">
             <span class="shot-pos">@ {{ c.x }}, {{ c.y }}</span>
             <div class="shot-card-actions">
-              <button class="btn btn-small" @click="saveToDir(c)">{{ t('screenshot.saveToDir') }}</button>
+              <button class="btn btn-small" @click="copyShot(c)">
+                {{ t('screenshot.copyImg') }}
+              </button>
+              <button class="btn btn-small" @click="saveToDir(c)">
+                {{ t('screenshot.saveToDir') }}
+              </button>
               <button class="btn btn-small" @click="saveAs(c)">{{ t('screenshot.saveAs') }}</button>
               <button class="btn btn-small btn-ocr" :disabled="ocrBusy" @click="recognizeShot(c)">
                 {{ ocrBusy ? t('screenshot.ocrBusy') : t('screenshot.ocrBtn') }}
@@ -249,7 +278,11 @@ async function regionCapture() {
           </div>
           <div v-if="ocrResults[c.index] !== undefined" class="shot-ocr">
             <div class="shot-ocr-head">{{ t('screenshot.ocrResult') }}</div>
-            <textarea class="shot-ocr-text" readonly :value="ocrResults[c.index] || '（未识别到文字）'"></textarea>
+            <textarea
+              class="shot-ocr-text"
+              readonly
+              :value="ocrResults[c.index] || '（未识别到文字）'"
+            ></textarea>
           </div>
         </div>
       </div>

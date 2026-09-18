@@ -4,6 +4,7 @@
 
 use std::fs as std_fs;
 use std::path::Path;
+use std::borrow::Cow;
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Serialize;
@@ -131,6 +132,55 @@ pub async fn write_file_base64(path: String, data_base64: String) -> Result<(), 
     .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
 }
 
+/// 把图片（PNG/JPEG base64）复制到系统剪贴板。
+#[command]
+pub async fn copy_image_to_clipboard(image_base64: String) -> Result<(), GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || -> Result<(), GlyphError> {
+        let bytes = STANDARD
+            .decode(&image_base64)
+            .map_err(|e| GlyphError::Internal(format!("base64: {e}")))?;
+        let img = image::load_from_memory(&bytes)
+            .map_err(|e| GlyphError::Internal(format!("图片解码失败: {e}")))?
+            .to_rgba8();
+        let (w, h) = (img.width() as usize, img.height() as usize);
+        let mut ctx =
+            arboard::Clipboard::new().map_err(|e| GlyphError::Internal(format!("剪贴板: {e}")))?;
+        ctx.set_image(arboard::ImageData {
+            width: w,
+            height: h,
+            bytes: Cow::Owned(img.into_raw()),
+        })
+        .map_err(|e| GlyphError::Internal(format!("复制失败: {e}")))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
+/// 检测文件编码（chardetng + BOM 嗅探），返回编码名。
+#[command]
+pub async fn detect_encoding(path: String) -> Result<String, GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || crate::encoding::detect(Path::new(&path)))
+        .await
+        .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
+/// 转换文件编码（from 留空 = 自动检测），写入 out，返回 "源 → 目标"。
+#[command]
+pub async fn convert_file_encoding(
+    path: String,
+    from: String,
+    to: String,
+    out: String,
+) -> Result<String, GlyphError> {
+    let (src, dst) = tauri::async_runtime::spawn_blocking(move || {
+        crate::encoding::convert(Path::new(&path), &from, &to, Path::new(&out))
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))??;
+    Ok(format!("{src} → {dst}"))
+}
+
 /// 云端 OCR 识别（provider: baidu/ali/tencent；key 由前端本地配置传入）。
 #[command]
 pub async fn ocr_recognize_cloud(
@@ -225,4 +275,68 @@ pub async fn pdf_delete(path: String, pages: String, out: String) -> Result<(), 
 #[command]
 pub fn pdf_page_count(path: String) -> Result<u32, GlyphError> {
     crate::pdf::page_count(std::path::Path::new(&path))
+}
+
+/// 提取 PDF 文字
+#[command]
+pub async fn pdf_extract_text(path: String) -> Result<String, GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::pdf::extract_text(std::path::Path::new(&path))
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
+/// 提取指定页为新 PDF
+#[command]
+pub async fn pdf_extract_pages(path: String, pages: String, out: String) -> Result<(), GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::pdf::extract(
+            std::path::Path::new(&path),
+            &pages,
+            std::path::Path::new(&out),
+        )
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
+/// 按范围拆分（ranges 如 "1-3,4-8"）
+#[command]
+pub async fn pdf_split_ranges(
+    path: String,
+    ranges: String,
+    out_dir: String,
+) -> Result<Vec<String>, GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::pdf::split_ranges(
+            std::path::Path::new(&path),
+            &ranges,
+            std::path::Path::new(&out_dir),
+        )
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
+/// PDF 转图片（逐页渲染为 PNG/JPEG，pages 空 = 全部）
+#[command]
+pub async fn pdf_to_images(
+    path: String,
+    pages: String,
+    dpi: u32,
+    format: String,
+    out_dir: String,
+) -> Result<Vec<String>, GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::pdf::to_images(
+            std::path::Path::new(&path),
+            &pages,
+            dpi,
+            &format,
+            std::path::Path::new(&out_dir),
+        )
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
 }

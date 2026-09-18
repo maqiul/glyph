@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
-import { emit } from '@tauri-apps/api/event'
+import { emit, listen } from '@tauri-apps/api/event'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import ActivityBar from './components/ActivityBar.vue'
 import CommandPalette from './components/CommandPalette.vue'
@@ -66,6 +66,7 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 let unlistenDrag: (() => void) | null = null
+let unlistenShot: (() => void) | null = null
 
 onMounted(async () => {
   await bootstrap()
@@ -81,11 +82,20 @@ onMounted(async () => {
   } catch (e) {
     console.warn('drag listener failed:', e)
   }
+  try {
+    // 全局截图快捷键（Ctrl+Shift+A）：后端 emit → 切到截图工具并发起框选
+    unlistenShot = await listen('global-screenshot', () => {
+      settings.requestScreenshotCapture()
+    })
+  } catch (e) {
+    console.warn('screenshot shortcut listener failed:', e)
+  }
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
   unlistenDrag?.()
+  unlistenShot?.()
 })
 </script>
 
@@ -95,9 +105,31 @@ onUnmounted(() => {
       <div class="gb-left">
         <svg class="logo" width="22" height="22" viewBox="0 0 32 32" aria-label="Glyph">
           <rect x="2" y="2" width="28" height="28" rx="7" fill="currentColor" />
-          <path d="M22 11.5a6 6 0 1 0 0 9" stroke="var(--bg)" stroke-width="2.4" stroke-linecap="round" fill="none" />
-          <line x1="16" y1="16" x2="22" y2="16" stroke="var(--bg)" stroke-width="2.4" stroke-linecap="round" />
-          <line x1="22" y1="16" x2="22" y2="20" stroke="var(--bg)" stroke-width="2.4" stroke-linecap="round" />
+          <path
+            d="M22 11.5a6 6 0 1 0 0 9"
+            stroke="var(--bg)"
+            stroke-width="2.4"
+            stroke-linecap="round"
+            fill="none"
+          />
+          <line
+            x1="16"
+            y1="16"
+            x2="22"
+            y2="16"
+            stroke="var(--bg)"
+            stroke-width="2.4"
+            stroke-linecap="round"
+          />
+          <line
+            x1="22"
+            y1="16"
+            x2="22"
+            y2="20"
+            stroke="var(--bg)"
+            stroke-width="2.4"
+            stroke-linecap="round"
+          />
         </svg>
         <span class="app-name">Glyph</span>
         <span class="divider">·</span>
@@ -109,23 +141,40 @@ onUnmounted(() => {
           {{ settings.theme === 'light' ? '🌙' : '☀️' }}
         </button>
         <div class="menu-anchor">
-          <button class="btn btn-icon-only" :title="t('toolbar.settingsTip')" @click="showSettings = !showSettings">⚙</button>
+          <button
+            class="btn btn-icon-only"
+            :title="t('toolbar.settingsTip')"
+            @click="showSettings = !showSettings"
+          >
+            ⚙
+          </button>
           <div v-if="showSettings" class="dropdown dropdown-settings" @click.stop>
             <div class="setting-group">
               <div class="setting-label">{{ t('settings.language') }}</div>
               <div class="setting-row">
-                <button :class="{ active: settings.language === 'zh' }" @click="changeLang('zh')">中文</button>
-                <button :class="{ active: settings.language === 'en' }" @click="changeLang('en')">English</button>
+                <button :class="{ active: settings.language === 'zh' }" @click="changeLang('zh')">
+                  中文
+                </button>
+                <button :class="{ active: settings.language === 'en' }" @click="changeLang('en')">
+                  English
+                </button>
               </div>
             </div>
             <div class="setting-group">
               <div class="setting-label">{{ t('settings.theme') }}</div>
               <div class="setting-row">
-                <button :class="{ active: settings.theme === 'light' }" @click="setTheme('light')">☀️ Light</button>
-                <button :class="{ active: settings.theme === 'dark' }" @click="setTheme('dark')">🌙 Dark</button>
+                <button :class="{ active: settings.theme === 'light' }" @click="setTheme('light')">
+                  ☀️ Light
+                </button>
+                <button :class="{ active: settings.theme === 'dark' }" @click="setTheme('dark')">
+                  🌙 Dark
+                </button>
               </div>
             </div>
-            <p v-if="appInfo" class="about">Glyph v{{ appInfo.version }} · Tauri {{ appInfo.tauri_version }} · {{ appInfo.platform }}</p>
+            <p v-if="appInfo" class="about">
+              Glyph v{{ appInfo.version }} · Tauri {{ appInfo.tauri_version }} ·
+              {{ appInfo.platform }}
+            </p>
           </div>
         </div>
       </div>

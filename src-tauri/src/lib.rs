@@ -10,16 +10,17 @@
 //! - `ocr` / `ocr_cloud`：本地（oar-ocr）/ 云端（百度）文字识别
 //! - `error`：统一错误类型
 //!
-//! 全局能力：托盘常驻 + 全局快捷键（Ctrl+Shift+G 唤起）+ 关窗收进托盘。
+//! 全局能力：托盘常驻 + 全局快捷键（Ctrl+Shift+G 唤起 / Ctrl+Shift+A 截图）+ 关窗收进托盘。
 
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    Manager, WindowEvent,
+    Emitter, Manager, WindowEvent,
 };
 use tauri_plugin_global_shortcut::{Builder as GsBuilder, GlobalShortcutExt, ShortcutState};
 
 pub mod commands;
+pub mod encoding;
 pub mod error;
 pub mod markdown;
 pub mod ocr;
@@ -29,6 +30,8 @@ pub mod screenshot;
 
 /// 全局唤起快捷键（app 在后台/最小化时把它带回前台）
 const GLOBAL_SHORTCUT: &str = "CmdOrCtrl+Shift+G";
+/// 区域截图全局快捷键（任意时刻唤起框选截图）
+const SCREENSHOT_SHORTCUT: &str = "CmdOrCtrl+Shift+A";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -37,19 +40,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(
-            GsBuilder::new()
-                .with_handler(|app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.unminimize();
-                            let _ = w.show();
-                            let _ = w.set_focus();
-                        }
-                    }
-                })
-                .build(),
-        )
+        .plugin(GsBuilder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::ping,
             commands::get_app_info,
@@ -64,18 +55,48 @@ pub fn run() {
             commands::ocr_recognize_cloud,
             commands::ocr_recognize_cloud_base64,
             commands::write_file_base64,
+            commands::copy_image_to_clipboard,
+            commands::detect_encoding,
+            commands::convert_file_encoding,
             commands::pdf_merge,
             commands::pdf_split,
             commands::pdf_rotate,
             commands::pdf_delete,
             commands::pdf_page_count,
+            commands::pdf_extract_text,
+            commands::pdf_extract_pages,
+            commands::pdf_split_ranges,
+            commands::pdf_to_images,
         ])
         .setup(|app| {
             log::info!("Glyph 启动 v{}", env!("CARGO_PKG_VERSION"));
 
-            // 全局快捷键注册
-            if let Err(e) = app.global_shortcut().register(GLOBAL_SHORTCUT) {
+            // 全局快捷键：唤起主窗（Ctrl+Shift+G）
+            if let Err(e) =
+                app.global_shortcut()
+                    .on_shortcut(GLOBAL_SHORTCUT, |app, _sc, event| {
+                        if event.state() == ShortcutState::Pressed {
+                            if let Some(w) = app.get_webview_window("main") {
+                                let _ = w.unminimize();
+                                let _ = w.show();
+                                let _ = w.set_focus();
+                            }
+                        }
+                    })
+            {
                 log::warn!("注册全局快捷键 {GLOBAL_SHORTCUT} 失败: {e}");
+            }
+
+            // 全局快捷键：区域截图（Ctrl+Shift+A）→ 通知前端发起截屏
+            if let Err(e) =
+                app.global_shortcut()
+                    .on_shortcut(SCREENSHOT_SHORTCUT, |app, _sc, event| {
+                        if event.state() == ShortcutState::Pressed {
+                            let _ = app.emit("global-screenshot", ());
+                        }
+                    })
+            {
+                log::warn!("注册截图快捷键 {SCREENSHOT_SHORTCUT} 失败: {e}");
             }
 
             // 关闭主窗时收进托盘而非退出

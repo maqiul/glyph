@@ -3,7 +3,8 @@ import { defineStore } from 'pinia'
 export type EditorMode = 'edit' | 'preview' | 'split'
 export type Theme = 'light' | 'dark'
 export type FontSize = 'S' | 'M' | 'L' | 'XL'
-export type ActiveTool = 'markdown' | 'screenshot' | 'ocr' | 'dev' | 'pdf'
+export type ActiveTool =
+  'markdown' | 'screenshot' | 'ocr' | 'dev' | 'pdf' | 'text' | 'file' | 'image'
 
 interface SettingsState {
   activeTool: ActiveTool
@@ -22,6 +23,8 @@ interface SettingsState {
   ocrProvider: 'baidu' | 'ali' | 'tencent'
   ocrApiKey: string
   ocrSecretKey: string
+  /** 全局截图快捷键触发标记（瞬态，不持久化） */
+  pendingCapture: boolean
 }
 
 export const useSettingsStore = defineStore('settings', {
@@ -42,6 +45,7 @@ export const useSettingsStore = defineStore('settings', {
     ocrProvider: 'baidu',
     ocrApiKey: '',
     ocrSecretKey: '',
+    pendingCapture: false,
   }),
   actions: {
     setActiveTool(t: ActiveTool) {
@@ -106,6 +110,11 @@ export const useSettingsStore = defineStore('settings', {
     setOcrKeys(key: string, secret: string) {
       this.ocrApiKey = key
       this.ocrSecretKey = secret
+    },
+    /** 全局截图快捷键：切到截图工具并置待捕获标记，由 ScreenshotTool 消费 */
+    requestScreenshotCapture() {
+      this.activeTool = 'screenshot'
+      this.pendingCapture = true
     },
   },
 })
