@@ -65,7 +65,12 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
+            libxcb1-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev \
+            libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
+            patchelf pkg-config
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
