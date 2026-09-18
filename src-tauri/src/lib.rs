@@ -23,6 +23,13 @@ pub mod commands;
 pub mod encoding;
 pub mod error;
 pub mod markdown;
+// OCR 后端按平台分派，对上层统一暴露 `crate::ocr::{recognize_file, recognize_base64}`：
+// - 非 macOS：oar-ocr（ONNX Runtime），文件 ocr.rs
+// - macOS：原生 Vision，文件 ocr_vision.rs（extern *.m）
+#[cfg(not(target_os = "macos"))]
+pub mod ocr;
+#[cfg(target_os = "macos")]
+#[path = "ocr_vision.rs"]
 pub mod ocr;
 pub mod ocr_cloud;
 pub mod pdf;

@@ -45,7 +45,6 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 base64 = "0.23"
 # 云端 OCR HTTP 客户端（纯 Rust TLS）
 ureq = { version = "2", features = ["json"] }
-oar-ocr = { version = "0.9", features = ["auto-download"] }
 lopdf = "0.36.0"
 # PDF 文字提取（纯 Rust，基于 lopdf 内容流解析）
 pdf-extract = "0.12"
@@ -53,6 +52,15 @@ pdf-extract = "0.12"
 pdf_oxide = { version = "0.3.78", features = ["rendering"] }
 # 系统剪贴板（将截图/标注图片复制到剪贴板）
 arboard = "3"
+
+# OCR 后端按平台分派：非 macOS 用 oar-ocr(ONNX Runtime)；
+# macOS 改用原生 Vision（见 ocr_vision.rs / ocr_vision.m），不再依赖 ort，
+# 从而支持 Intel(x86_64) + Apple 芯片(arm64) 并可构建 universal 包。
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+oar-ocr = { version = "0.9", features = ["auto-download"] }
+
+[target.'cfg(target_os = "macos")'.build-dependencies]
+cc = "1"
 
 [profile.release]
 panic = "abort"
