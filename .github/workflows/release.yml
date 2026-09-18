@@ -21,10 +21,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macOS：构建 Universal（Intel + Apple 芯片）单一包
+          # macOS：仅 Apple 芯片(arm64)。Intel(x86_64) 因 OCR 引擎
+          # ort-sys/onnxruntime 无预编译二进制，无法构建 universal。
           - platform: 'macos-latest'
-            args: '--target universal-apple-darwin --bundles dmg'
-            rustTargets: 'aarch64-apple-darwin,x86_64-apple-darwin'
+            args: '--target aarch64-apple-darwin --bundles dmg'
+            rustTargets: 'aarch64-apple-darwin'
           # Windows：NSIS 安装包(.exe)
           - platform: 'windows-latest'
             args: '--bundles nsis'
@@ -77,7 +78,7 @@ jobs:
           # 仅当由 tag 触发时创建/发布 Release；手动触发时只上传 Artifacts
           tagName: ${{ github.ref_name }}
           releaseName: 'Glyph ${{ github.ref_name }}'
-          releaseBody: '多平台安装包：Windows(.exe)、macOS(Universal .dmg)。下载对应系统的文件即可安装。（Linux 因上游 PipeWire/libspa 依赖需 PipeWire≥1.2，暂缺，后续单独支持）'
+          releaseBody: '多平台安装包：Windows(.exe)、macOS(Apple 芯片 arm64 .dmg)。下载对应系统的文件即可安装。（Linux 需 PipeWire≥1.2、macOS Intel 需 onnxruntime 预编译包，均暂缺，后续单独支持）'
           releaseDraft: false
           prerelease: false
           includeRelease: ${{ github.ref_type == 'tag' }}
