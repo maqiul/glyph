@@ -5,7 +5,6 @@ import ScreenshotTool from './components/tools/ScreenshotTool.vue'
 import OcrTool from './components/tools/OcrTool.vue'
 import DevTool from './components/tools/DevTool.vue'
 import PdfTool from './components/tools/PdfTool.vue'
-import TextTool from './components/tools/TextTool.vue'
 import FileTool from './components/tools/FileTool.vue'
 import ImageTool from './components/tools/ImageTool.vue'
 
@@ -51,12 +50,6 @@ export const TOOLS: ToolDef[] = [
     labelKey: 'tools.pdf',
     icon: 'M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M13 3v6h6 M8 16h6',
     component: PdfTool,
-  },
-  {
-    id: 'text',
-    labelKey: 'tools.text',
-    icon: 'M4 6h16 M4 12h10 M4 18h7 M15 15l3 3 4-5',
-    component: TextTool,
   },
   {
     id: 'file',
