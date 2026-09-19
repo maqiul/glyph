@@ -78,7 +78,7 @@ jobs:
           # 仅当由 tag 触发时创建/发布 Release；手动触发时只上传 Artifacts
           tagName: ${{ github.ref_name }}
           releaseName: 'Glyph ${{ github.ref_name }}'
-          releaseBody: '多平台安装包：Windows(.exe)、macOS(Universal .dmg，Intel+Apple 芯片)、Linux(.AppImage/.rpm)。下载对应系统的文件即可安装。'
+          releaseBody: '多平台安装包：Windows(.exe)、macOS(Universal .dmg，Intel+Apple 芯片)、Linux(.deb/.rpm)。下载对应系统的文件即可安装。'
           releaseDraft: false
           prerelease: false
           includeRelease: ${{ github.ref_type == 'tag' }}
@@ -89,18 +89,16 @@ jobs:
   # 注意：libspa-sys 的 build.rs 用 bindgen 生成绑定，需系统 libclang.so，
   # 而 fedora:41 纯净镜像不带 clang（托管 ubuntu runner 才预装），故必须显式装 clang/llvm。
   # 链接阶段：arboard→softbuffer→gbm 会 -lgbm，需 mesa-libgbm-devel(提供 libgbm.so) + libdrm-devel。
-  # 不动上面已验证的 Win/Mac 矩阵；产物 AppImage + rpm，附到同一个 Release。
+  # 产物用 deb + rpm（tauri 直接打包，不经 linuxdeploy）。AppImage 已放弃：
+  # linuxdeploy 对 GTK/WebKitGTK 应用在 CI/容器里普遍 "failed to run linuxdeploy"（tauri#14796/#14208，未修）。
   linux:
-    name: 'release (linux-fedora41, appimage+rpm)'
+    name: 'release (linux-fedora41, deb+rpm)'
     runs-on: ubuntu-24.04
     container:
       image: fedora:41
     env:
       CARGO_PROFILE_RELEASE_LTO: 'false'
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: '16'
-      # 容器里无 FUSE（/dev/fuse），而 linuxdeploy/appimagetool 本身是 AppImage，
-      # 直接执行会因无法挂载而 "failed to run linuxdeploy"。此变量让其解包后运行，绕开 FUSE。
-      APPIMAGE_EXTRACT_AND_RUN: '1'
     steps:
       - name: Install Fedora build dependencies
         run: |
@@ -109,6 +107,7 @@ jobs:
             gcc gcc-c++ make pkgconf-pkg-config \
             clang clang-libs llvm \
             mesa-libgbm-devel libdrm-devel \
+            binutils xz \
             openssl-devel webkit2gtk4.1-devel libxdo-devel \
             gtk3-devel glib2-devel libX11-devel libXtst-devel \
             librsvg2-devel pipewire-devel libappindicator-gtk3-devel \
@@ -125,16 +124,16 @@ jobs:
           workspaces: './src-tauri -> target'
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
-      - name: Build (AppImage + rpm) and attach to Release
+      - name: Build (deb + rpm) and attach to Release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Glyph ${{ github.ref_name }}'
-          releaseBody: '多平台安装包：Windows(.exe)、macOS(Universal .dmg，Intel+Apple 芯片)、Linux(.AppImage/.rpm)。下载对应系统的文件即可安装。'
+          releaseBody: '多平台安装包：Windows(.exe)、macOS(Universal .dmg，Intel+Apple 芯片)、Linux(.deb/.rpm)。下载对应系统的文件即可安装。'
           releaseDraft: false
           prerelease: false
           includeRelease: ${{ github.ref_type == 'tag' }}
           includeUpdaterJson: false
-          args: '--bundles appimage rpm'
+          args: '--bundles deb rpm'
