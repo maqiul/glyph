@@ -86,6 +86,8 @@ jobs:
           args: ${{ matrix.args }}
 
   # Linux：单独跑在 fedora:41 容器里（PipeWire 1.2，满足 xcap→libspa 0.10 编译）。
+  # 注意：libspa-sys 的 build.rs 用 bindgen 生成绑定，需系统 libclang.so，
+  # 而 fedora:41 纯净镜像不带 clang（托管 ubuntu runner 才预装），故必须显式装 clang/llvm。
   # 不动上面已验证的 Win/Mac 矩阵；产物 AppImage + rpm，附到同一个 Release。
   linux:
     name: 'release (linux-fedora41, appimage+rpm)'
@@ -101,6 +103,7 @@ jobs:
           dnf install -y \
             git which curl wget file tar \
             gcc gcc-c++ make pkgconf-pkg-config \
+            clang clang-libs llvm \
             openssl-devel webkit2gtk4.1-devel libxdo-devel \
             gtk3-devel glib2-devel libX11-devel libXtst-devel \
             librsvg2-devel pipewire-devel libappindicator-gtk3-devel \
