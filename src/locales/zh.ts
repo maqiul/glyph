@@ -166,6 +166,8 @@ export default {
     rootName: '根类型名',
     optNull: 'null 可选',
     download: '下载',
+    foldAll: '折叠全部',
+    unfoldAll: '展开全部',
     radix: '进制',
     upper: '大写',
     lower: '小写',

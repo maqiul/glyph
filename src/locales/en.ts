@@ -167,6 +167,8 @@ export default {
     rootName: 'Root name',
     optNull: 'null optional',
     download: 'Download',
+    foldAll: 'Fold all',
+    unfoldAll: 'Unfold all',
     radix: 'Radix',
     upper: 'UPPER',
     lower: 'lower',

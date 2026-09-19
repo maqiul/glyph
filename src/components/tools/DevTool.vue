@@ -8,9 +8,12 @@ import { readFile } from '@tauri-apps/plugin-fs'
 import QRCode from 'qrcode'
 import jsQR from 'jsqr'
 import { useSettingsStore } from '../../stores/settings'
+import JsonViewer from './JsonViewer.vue'
 
 const { t } = useI18n()
 const settings = useSettingsStore()
+const jsonView = ref<InstanceType<typeof JsonViewer> | null>(null)
+const tsView = ref<InstanceType<typeof JsonViewer> | null>(null)
 type Sub =
   | 'json'
   | 'codec'
@@ -955,15 +958,15 @@ async function copy(text: string) {
           <button class="btn" :disabled="!jsonOut" @click="copy(jsonOut)">
             {{ t('dev.copy') }}
           </button>
+          <button class="btn" :disabled="!jsonOut" @click="jsonView?.foldAll()">
+            {{ t('dev.foldAll') }}
+          </button>
+          <button class="btn" :disabled="!jsonOut" @click="jsonView?.unfoldAll()">
+            {{ t('dev.unfoldAll') }}
+          </button>
         </div>
         <div v-if="jsonErr" class="dev-err">⚠ {{ jsonErr }}</div>
-        <textarea
-          :value="jsonOut"
-          class="dev-io"
-          readonly
-          :placeholder="t('dev.output')"
-          spellcheck="false"
-        ></textarea>
+        <JsonViewer ref="jsonView" :model-value="jsonOut" class="json-out" />
       </div>
 
       <!-- Codec -->
@@ -1260,15 +1263,15 @@ async function copy(text: string) {
           >
             {{ t('dev.download') }}
           </button>
+          <button class="btn" :disabled="!tsOut" @click="tsView?.foldAll()">
+            {{ t('dev.foldAll') }}
+          </button>
+          <button class="btn" :disabled="!tsOut" @click="tsView?.unfoldAll()">
+            {{ t('dev.unfoldAll') }}
+          </button>
         </div>
         <div v-if="tsErr" class="dev-err">⚠ {{ tsErr }}</div>
-        <textarea
-          :value="tsOut"
-          class="dev-io"
-          readonly
-          :placeholder="t('dev.output')"
-          spellcheck="false"
-        ></textarea>
+        <JsonViewer ref="tsView" lang="typescript" :model-value="tsOut" class="json-out" />
       </div>
 
       <!-- Radix -->
@@ -1792,5 +1795,10 @@ async function copy(text: string) {
 .diff-text {
   flex: 1;
   min-width: 0;
+}
+
+.json-out {
+  flex: 1;
+  min-height: 160px;
 }
 </style>
