@@ -9,6 +9,7 @@ import QRCode from 'qrcode'
 import jsQR from 'jsqr'
 import { useSettingsStore } from '../../stores/settings'
 import JsonViewer from './JsonViewer.vue'
+import HttpTool from './HttpTool.vue'
 
 const { t } = useI18n()
 const settings = useSettingsStore()
@@ -430,87 +431,7 @@ function download(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-// ---- HTTP 请求（Postman 式，走 Rust 后端 ureq 代理绕开 CORS）----
-const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'] as const
-const httpMethod = ref<(typeof HTTP_METHODS)[number]>('GET')
-const httpUrl = ref('')
-const httpHeadersText = ref('')
-const httpBody = ref('')
-const httpTimeout = ref(30)
-const httpSending = ref(false)
-const httpError = ref('')
-interface HttpResp {
-  status: number
-  ok: boolean
-  headers: [string, string][]
-  body: string
-  truncated: boolean
-  durationMs: number
-  sizeBytes: number
-}
-const httpResp = ref<HttpResp | null>(null)
-// 响应体尽量格式化 JSON（失败则原样）。
-const httpRespBody = computed(() => {
-  const b = httpResp.value?.body ?? ''
-  try {
-    return JSON.stringify(JSON.parse(b), null, 2)
-  } catch {
-    return b
-  }
-})
-function statusText(code: number): string {
-  const map: Record<number, string> = {
-    200: 'OK',
-    201: 'Created',
-    204: 'No Content',
-    301: 'Moved Permanently',
-    302: 'Found',
-    304: 'Not Modified',
-    400: 'Bad Request',
-    401: 'Unauthorized',
-    403: 'Forbidden',
-    404: 'Not Found',
-    405: 'Method Not Allowed',
-    408: 'Request Timeout',
-    429: 'Too Many Requests',
-    500: 'Internal Server Error',
-    502: 'Bad Gateway',
-    503: 'Service Unavailable',
-    504: 'Gateway Timeout',
-  }
-  return map[code] ?? ''
-}
-async function sendHttp() {
-  httpError.value = ''
-  httpResp.value = null
-  const url = httpUrl.value.trim()
-  if (!url) {
-    httpError.value = t('dev.httpNeedUrl')
-    return
-  }
-  const headers: [string, string][] = []
-  for (const line of httpHeadersText.value.split('\n')) {
-    const l = line.trim()
-    if (!l) continue
-    const idx = l.indexOf(':')
-    if (idx <= 0) continue
-    headers.push([l.slice(0, idx).trim(), l.slice(idx + 1).trim()])
-  }
-  httpSending.value = true
-  try {
-    httpResp.value = await invoke<HttpResp>('http_request', {
-      method: httpMethod.value,
-      url,
-      headers,
-      body: httpBody.value,
-      timeoutSecs: httpTimeout.value,
-    })
-  } catch (e) {
-    httpError.value = String(e)
-  } finally {
-    httpSending.value = false
-  }
-}
+// (HTTP 工具已抽到独立组件 HttpTool.vue，Postman 式：Params/Headers/Body 分页 + 历史/收藏)
 
 // ---- 人民币大写转换 ----
 const rmbIn = ref('')
@@ -1439,76 +1360,8 @@ async function copy(text: string) {
         <JsonViewer ref="tsView" lang="typescript" :model-value="tsOut" class="json-out" />
       </div>
 
-      <!-- HTTP 请求 -->
-      <div v-else-if="active === 'http'" class="dev-panel">
-        <div class="dev-actions">
-          <select v-model="httpMethod" class="http-method">
-            <option v-for="m in HTTP_METHODS" :key="m" :value="m">{{ m }}</option>
-          </select>
-          <input
-            v-model="httpUrl"
-            class="dev-line"
-            :placeholder="t('dev.httpUrlPh')"
-            spellcheck="false"
-            @keyup.enter="sendHttp"
-          />
-          <button class="btn" :disabled="httpSending" @click="sendHttp">
-            {{ httpSending ? t('dev.httpSending') : t('dev.httpSend') }}
-          </button>
-        </div>
-        <div class="http-cols">
-          <div class="http-col">
-            <div class="dev-section-head">{{ t('dev.httpHeaders') }}</div>
-            <textarea
-              v-model="httpHeadersText"
-              class="dev-io http-io"
-              :placeholder="t('dev.httpHeadersPh')"
-              spellcheck="false"
-            ></textarea>
-          </div>
-          <div class="http-col">
-            <div class="dev-section-head">{{ t('dev.httpBody') }}</div>
-            <textarea
-              v-model="httpBody"
-              class="dev-io http-io"
-              :placeholder="t('dev.httpBodyPh')"
-              spellcheck="false"
-            ></textarea>
-          </div>
-        </div>
-        <div class="dev-actions">
-          <label class="cfg-label">{{ t('dev.httpTimeout') }}</label>
-          <input v-model.number="httpTimeout" type="number" min="1" max="600" class="dev-num" />
-          <span class="cfg-label">{{ t('dev.httpTimeoutUnit') }}</span>
-        </div>
-        <div v-if="httpError" class="dev-err">⚠ {{ httpError }}</div>
-        <template v-if="httpResp">
-          <div class="http-status" :class="httpResp.ok ? 'ok' : 'err'">
-            <span class="http-code">{{ httpResp.status }} {{ statusText(httpResp.status) }}</span>
-            <span class="http-meta">{{ httpResp.durationMs }} ms · {{ httpResp.sizeBytes }} B</span>
-          </div>
-          <div v-if="httpResp.headers.length" class="http-resp-headers">
-            <div v-for="(h, i) in httpResp.headers" :key="i" class="http-hdr-row">
-              <code class="http-hdr-k">{{ h[0] }}</code
-              ><span>{{ h[1] }}</span>
-            </div>
-          </div>
-          <div class="dev-section-head">
-            {{ t('dev.httpResponse') }}
-            <span v-if="httpResp.truncated" class="cfg-label">· {{ t('dev.httpTruncated') }}</span>
-            <button class="btn" style="margin-left: auto" @click="copy(httpRespBody)">
-              {{ t('dev.copy') }}
-            </button>
-          </div>
-          <textarea
-            :value="httpRespBody"
-            class="dev-io"
-            readonly
-            spellcheck="false"
-            :placeholder="t('dev.output')"
-          ></textarea>
-        </template>
-      </div>
+      <!-- HTTP 请求（独立组件，Postman 式） -->
+      <HttpTool v-else-if="active === 'http'" class="http-host" />
 
       <!-- 人民币大写 -->
       <div v-else-if="active === 'rmb'" class="dev-panel">
@@ -2066,92 +1919,9 @@ async function copy(text: string) {
   min-height: 160px;
 }
 
-.http-method {
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.http-cols {
-  display: flex;
-  gap: 12px;
-  flex: none;
-}
-
-.http-col {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.http-io {
-  min-height: 90px;
-  flex: none;
-}
-
-.http-status {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-
-.http-status.ok {
-  border-color: #1a7f37;
-  background: rgba(26, 127, 55, 0.1);
-}
-
-.http-status.err {
-  border-color: var(--error);
-  background: rgba(207, 34, 46, 0.1);
-}
-
-.http-code {
-  font-weight: 700;
-}
-
-.http-meta {
-  color: var(--text-muted);
-}
-
-.http-resp-headers {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 6px 12px;
-  max-height: 160px;
-  overflow-y: auto;
-  font-size: 12.5px;
-  font-family: var(--font-mono);
-}
-
-.http-hdr-row {
-  display: flex;
-  gap: 10px;
-  padding: 3px 0;
-  border-bottom: 1px dashed var(--border);
-  word-break: break-word;
-}
-
-.http-hdr-row:last-child {
-  border-bottom: 0;
-}
-
-.http-hdr-k {
-  color: var(--accent);
-  flex: 0 0 auto;
-  font-weight: 600;
+.http-host {
+  height: 100%;
+  min-height: 0;
 }
 
 .rmb-out {
