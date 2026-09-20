@@ -48,6 +48,50 @@ pub async fn read_markdown_file(path: String) -> Result<RenderResult, GlyphError
         .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
 }
 
+/// 读取本地图片 → `data:<mime>;base64,...`。
+/// Markdown 预览里的相对/绝对本地图片无法在 webview 直接加载（页面源是 tauri://localhost），
+/// 前端解析出绝对路径后调用本命令，以内联 data URL 显示。与截图/OCR 的 base64 方案一致。
+#[command]
+pub async fn read_image_data_url(path: String) -> Result<String, GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || -> Result<String, GlyphError> {
+        const MAX_IMAGE_BYTES: u64 = 25 * 1024 * 1024; // 25MB
+        let p = Path::new(&path);
+        let meta = std_fs::metadata(p).map_err(GlyphError::from)?;
+        if meta.len() > MAX_IMAGE_BYTES {
+            return Err(GlyphError::Internal(format!(
+                "图片过大（{} 字节，上限 25MB）",
+                meta.len()
+            )));
+        }
+        let bytes = std_fs::read(p).map_err(GlyphError::from)?;
+        let mime = mime_from_ext(p);
+        Ok(format!("data:{mime};base64,{}", STANDARD.encode(&bytes)))
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
+/// 按扩展名猜图片 MIME；未知返回 application/octet-stream。
+fn mime_from_ext(p: &Path) -> &'static str {
+    let ext = p
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .unwrap_or_default();
+    match ext.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" | "jpe" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "bmp" => "image/bmp",
+        "svg" => "image/svg+xml",
+        "ico" => "image/x-icon",
+        "avif" => "image/avif",
+        "tif" | "tiff" => "image/tiff",
+        _ => "application/octet-stream",
+    }
+}
+
 /// 写入文本到 markdown 文件（编辑保存用）。
 /// 写入用 UTF-8（无 BOM）。如果原文件是 GB18030 / Latin1 等非 UTF-8 编码，
 /// 会以 UTF-8 写回（提示用户）。

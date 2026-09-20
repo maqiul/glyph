@@ -16,6 +16,7 @@ export default {
     lineWidth: 'Line width',
     editorFontSize: 'Editor font size',
     immersive: 'Immersive mode',
+    metaPanel: 'Info panel',
     on: 'on',
     off: 'off',
     width: { compact: 'compact', standard: 'standard', wide: 'wide' },

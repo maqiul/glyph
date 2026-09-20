@@ -11,6 +11,7 @@ interface PersistedState {
   mode: 'edit' | 'preview' | 'split'
   fontSize: 'S' | 'M' | 'L' | 'XL'
   lineWidth: 'compact' | 'standard' | 'wide'
+  showMeta?: boolean
   editorFontSize: number
   recentFiles: string[]
   screenshotDir?: string
@@ -39,6 +40,7 @@ export async function loadPersisted(): Promise<void> {
       if (saved.mode) settings.setMode(saved.mode)
       if (saved.fontSize) settings.setFontSize(saved.fontSize)
       if (saved.lineWidth) settings.setLineWidth(saved.lineWidth)
+      if (saved.showMeta !== undefined) settings.setShowMeta(saved.showMeta)
       if (saved.editorFontSize) settings.setEditorFontSize(saved.editorFontSize)
       if (saved.recentFiles) settings.recentFiles = saved.recentFiles
       if (saved.screenshotDir !== undefined) settings.setScreenshotDir(saved.screenshotDir)
@@ -64,6 +66,7 @@ export async function savePersisted(): Promise<void> {
       mode: settings.mode,
       fontSize: settings.fontSize,
       lineWidth: settings.lineWidth,
+      showMeta: settings.showMeta,
       editorFontSize: settings.editorFontSize,
       recentFiles: settings.recentFiles,
       screenshotDir: settings.screenshotDir,

@@ -13,6 +13,8 @@ interface SettingsState {
   fontSize: FontSize
   lineWidth: 'compact' | 'standard' | 'wide'
   immersive: boolean
+  /** 右侧文件信息面板是否显示 */
+  showMeta: boolean
   editorFontSize: number
   recentFiles: string[]
   currentPath: string | null
@@ -35,6 +37,7 @@ export const useSettingsStore = defineStore('settings', {
     fontSize: 'M',
     lineWidth: 'standard',
     immersive: false,
+    showMeta: true,
     editorFontSize: 14,
     recentFiles: [],
     currentPath: null,
@@ -77,6 +80,9 @@ export const useSettingsStore = defineStore('settings', {
     },
     setImmersive(b: boolean) {
       this.immersive = b
+    },
+    setShowMeta(b: boolean) {
+      this.showMeta = b
     },
     setEditorFontSize(n: number) {
       this.editorFontSize = Math.max(10, Math.min(28, n))

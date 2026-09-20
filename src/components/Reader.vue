@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick, computed } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import MarkdownIt from 'markdown-it'
 import anchor from 'markdown-it-anchor'
@@ -145,11 +145,123 @@ const previewRef = ref<HTMLDivElement | null>(null)
 // 加载文件时抑制 watch(source) 把"打开"误标为"未保存"
 let skipDirty = false
 
+// ---- 本地图片内联显示 ----
+// webview 页面源为 tauri://localhost，Markdown 里的相对/绝对本地图片路径无法直接命中磁盘；
+// 渲染时把本地 <img> 的 src 暂存到 data-md-src 并清空，挂载后再解析成绝对路径、
+// 调用后端 read_image_data_url 读成 data URL 内联（与截图/OCR 的 base64 方案一致）。
+const imageDataCache = new Map<string, string>()
+
+function isRemoteSrc(src: string): boolean {
+  return /^(https?:)?\/\//i.test(src) || /^(data:|blob:)/i.test(src)
+}
+
+// 覆盖默认 image 渲染规则：本地图片先清空 src、把原始路径存入 data-md-src，交给 hydrate 处理。
+const imageRule = md.renderer.rules.image
+md.renderer.rules.image = (tokens, idx, options, env, self) => {
+  const token = tokens[idx]
+  if (token) {
+    const src = token.attrGet('src') || ''
+    if (src && !isRemoteSrc(src)) {
+      token.attrSet('data-md-src', src)
+      token.attrSet('src', '')
+    }
+  }
+  return imageRule
+    ? imageRule(tokens, idx, options, env, self)
+    : self.renderToken(tokens, idx, options)
+}
+
+function mdDirOf(path: string): string {
+  const i = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
+  return i > 0 ? path.slice(0, i) : ''
+}
+
+// 归一化路径：折叠 ./ 与 ../，兼容 Windows 盘符与 \ / 分隔符。
+function normalizePath(p: string): string {
+  const drive = /^[a-zA-Z]:/.test(p) ? p.slice(0, 2) : ''
+  const isWin = !!drive || p.includes('\\')
+  const sep = isWin ? '\\' : '/'
+  const absolute = !!drive || p.startsWith('/') || p.startsWith('\\')
+  const body = drive ? p.slice(drive.length) : p
+  const out: string[] = []
+  for (const seg of body.split(/[\\/]+/).filter(Boolean)) {
+    if (seg === '.') continue
+    if (seg === '..') {
+      if (out.length && out[out.length - 1] !== '..') out.pop()
+      continue
+    }
+    out.push(seg)
+  }
+  return drive + (absolute ? sep : '') + out.join(sep)
+}
+
+// 把 <img> 原始 src 解析成本地绝对路径；无法解析返回 null。
+function resolveLocalImage(rawSrc: string, dir: string): string | null {
+  let s = rawSrc.trim()
+  if (!s || isRemoteSrc(s)) return null
+  if (/^file:/i.test(s)) s = s.replace(/^file:+/i, '')
+  try {
+    s = decodeURIComponent(s)
+  } catch {
+    /* 含非法 % 序列时保留原样 */
+  }
+  const isAbs = /^([a-zA-Z]:[\\/]|[\\/])/.test(s)
+  const joined = isAbs || !dir ? s : `${dir}/${s}`
+  return normalizePath(joined)
+}
+
+// 扫描预览里待加载的本地图片，读成 data URL 内联（带缓存，避免每次编辑重复读盘）。
+async function hydrateImages() {
+  const root = previewRef.value
+  if (!root) return
+  const dir = props.path ? mdDirOf(props.path) : ''
+  const imgs = Array.from(root.querySelectorAll<HTMLImageElement>('img[data-md-src]'))
+  await Promise.all(
+    imgs.map(async (img) => {
+      const raw = img.getAttribute('data-md-src') || ''
+      const abs = resolveLocalImage(raw, dir)
+      if (!abs) return
+      const cached = imageDataCache.get(abs)
+      if (cached) {
+        img.src = cached
+        return
+      }
+      try {
+        const dataUrl = await invoke<string>('read_image_data_url', { path: abs })
+        imageDataCache.set(abs, dataUrl)
+        img.src = dataUrl
+      } catch (e) {
+        img.classList.add('img-missing')
+        console.warn('加载本地图片失败:', abs, e)
+      }
+    }),
+  )
+}
+
+function scheduleHydrate() {
+  nextTick().then(() => hydrateImages())
+}
+
 const previewContentClass = computed(() => ({
   content: true,
   [`width-${settings.lineWidth}`]: true,
   [`size-${settings.fontSize}`]: true,
 }))
+
+// 两侧面板可见性与网格列：窄屏(≤900px)或沉浸模式下自动收起；信息面板另受 settings.showMeta 控制。
+const narrow = ref(false)
+const showOutline = computed(
+  () => !narrow.value && !settings.immersive && headings.value.length > 0,
+)
+const showMetaPanel = computed(() => !narrow.value && !settings.immersive && settings.showMeta)
+const gridCols = computed(() => {
+  const cols: string[] = []
+  if (showOutline.value) cols.push('220px')
+  if (settings.mode !== 'preview') cols.push('1fr')
+  if (settings.mode !== 'edit') cols.push('1fr')
+  if (showMetaPanel.value) cols.push('240px')
+  return cols.join(' ') || '1fr'
+})
 
 async function loadFile(p: string) {
   loading.value = true
@@ -166,8 +278,9 @@ async function loadFile(p: string) {
     loading.value = false
     await nextTick()
     headings.value = applyHeadingIds(parseHeadings(result.content))
+    hydrateImages()
   } catch (e: unknown) {
-    const msg = typeof e === 'string' ? e : (e as any)?.message ?? JSON.stringify(e)
+    const msg = typeof e === 'string' ? e : ((e as any)?.message ?? JSON.stringify(e))
     error.value = msg
     source.value = ''
     html.value = ''
@@ -235,7 +348,28 @@ watch(source, (s) => {
   // 编辑后重新抽标题 + 给新 DOM 打稳定 id
   nextTick().then(() => {
     headings.value = applyHeadingIds(parseHeadings(s))
+    hydrateImages()
   })
+})
+
+// 切到预览/分屏时，预览 DOM 是新渲染的，需重新内联本地图片
+watch(
+  () => settings.mode,
+  () => scheduleHydrate(),
+)
+
+// 监听窄屏断点，配合 gridCols 收起两侧面板
+let mq: MediaQueryList | null = null
+function onMqChange(e: MediaQueryListEvent) {
+  narrow.value = e.matches
+}
+onMounted(() => {
+  mq = window.matchMedia('(max-width: 900px)')
+  narrow.value = mq.matches
+  mq.addEventListener('change', onMqChange)
+})
+onUnmounted(() => {
+  mq?.removeEventListener('change', onMqChange)
 })
 
 // 保存
@@ -256,7 +390,7 @@ async function save() {
       saveToast.value = null
     }, 1500)
   } catch (e: unknown) {
-    const msg = typeof e === 'string' ? e : (e as any)?.message ?? JSON.stringify(e)
+    const msg = typeof e === 'string' ? e : ((e as any)?.message ?? JSON.stringify(e))
     error.value = t('reader.saveFailed', { msg })
   } finally {
     saving.value = false
@@ -318,8 +452,13 @@ function formatBytes(n: number): string {
       <strong>⚠ {{ t('reader.error') }}</strong>
       <p>{{ error }}</p>
     </div>
-    <div v-else class="reader-layout" :class="`mode-${settings.mode}`">
-      <aside v-if="!settings.immersive && headings.length" class="toc">
+    <div
+      v-else
+      class="reader-layout"
+      :class="`mode-${settings.mode}`"
+      :style="{ gridTemplateColumns: gridCols }"
+    >
+      <aside v-if="showOutline" class="toc">
         <div class="toc-title">{{ t('reader.outline') }}</div>
         <ul class="toc-list">
           <li
@@ -340,13 +479,30 @@ function formatBytes(n: number): string {
           @cursor="onCursorChange"
         />
       </div>
-      <div v-if="settings.mode !== 'edit'" ref="previewRef" :class="previewContentClass" v-html="html" />
-      <aside v-if="!settings.immersive" class="meta-panel">
+      <div
+        v-if="settings.mode !== 'edit'"
+        ref="previewRef"
+        :class="previewContentClass"
+        v-html="html"
+      />
+      <aside v-if="showMetaPanel" class="meta-panel">
         <div class="meta-title">{{ title }}</div>
-        <div class="meta-row"><span>{{ t('reader.size') }}</span><span>{{ formatBytes(bytes) }}</span></div>
-        <div class="meta-row"><span>{{ t('reader.encoding') }}</span><span>{{ encoding }}</span></div>
-        <div class="meta-row"><span>{{ t('reader.headings') }}</span><span>{{ headings.length }}</span></div>
-        <div class="meta-row"><span>{{ t('reader.lines') }}</span><span>{{ source.split('\n').length }}</span></div>
+        <div class="meta-row">
+          <span>{{ t('reader.size') }}</span
+          ><span>{{ formatBytes(bytes) }}</span>
+        </div>
+        <div class="meta-row">
+          <span>{{ t('reader.encoding') }}</span
+          ><span>{{ encoding }}</span>
+        </div>
+        <div class="meta-row">
+          <span>{{ t('reader.headings') }}</span
+          ><span>{{ headings.length }}</span>
+        </div>
+        <div class="meta-row">
+          <span>{{ t('reader.lines') }}</span
+          ><span>{{ source.split('\n').length }}</span>
+        </div>
         <div class="meta-row">
           <span>{{ t('reader.mode') }}</span>
           <span>{{ t('mode.' + settings.mode) }}</span>
@@ -402,7 +558,9 @@ function formatBytes(n: number): string {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .reader-layout {
@@ -488,9 +646,17 @@ function formatBytes(n: number): string {
   font-weight: 500;
 }
 
-.toc-level-1 a { padding-left: 8px; font-weight: 500; }
-.toc-level-2 a { padding-left: 20px; }
-.toc-level-3 a { padding-left: 32px; font-size: 12px; }
+.toc-level-1 a {
+  padding-left: 8px;
+  font-weight: 500;
+}
+.toc-level-2 a {
+  padding-left: 20px;
+}
+.toc-level-3 a {
+  padding-left: 32px;
+  font-size: 12px;
+}
 
 .content {
   padding: 32px 48px;
@@ -502,15 +668,31 @@ function formatBytes(n: number): string {
 }
 
 /* 字号 */
-.content.size-S { font-size: 13px; }
-.content.size-M { font-size: 15px; }
-.content.size-L { font-size: 17px; }
-.content.size-XL { font-size: 19px; }
+.content.size-S {
+  font-size: 13px;
+}
+.content.size-M {
+  font-size: 15px;
+}
+.content.size-L {
+  font-size: 17px;
+}
+.content.size-XL {
+  font-size: 19px;
+}
 
 /* 行宽 */
-.content.width-compact { max-width: 720px; margin: 0 auto; }
-.content.width-standard { max-width: 860px; margin: 0 auto; }
-.content.width-wide { max-width: 100%; }
+.content.width-compact {
+  max-width: 720px;
+  margin: 0 auto;
+}
+.content.width-standard {
+  max-width: 860px;
+  margin: 0 auto;
+}
+.content.width-wide {
+  max-width: 100%;
+}
 
 .content :deep(h1),
 .content :deep(h2),
@@ -527,10 +709,16 @@ function formatBytes(n: number): string {
   padding-bottom: 0.3em;
 }
 
-.content :deep(h2) { font-size: 1.5em; }
-.content :deep(h3) { font-size: 1.2em; }
+.content :deep(h2) {
+  font-size: 1.5em;
+}
+.content :deep(h3) {
+  font-size: 1.2em;
+}
 
-.content :deep(p) { margin: 0.8em 0; }
+.content :deep(p) {
+  margin: 0.8em 0;
+}
 
 .content :deep(code) {
   background: var(--code-bg);
@@ -560,7 +748,9 @@ function formatBytes(n: number): string {
   text-decoration: none;
 }
 
-.content :deep(a:hover) { text-decoration: underline; }
+.content :deep(a:hover) {
+  text-decoration: underline;
+}
 
 .content :deep(blockquote) {
   margin: 1em 0;
@@ -593,11 +783,21 @@ function formatBytes(n: number): string {
 }
 
 .content :deep(ul),
-.content :deep(ol) { padding-left: 2em; }
+.content :deep(ol) {
+  padding-left: 2em;
+}
 
 .content :deep(img) {
   max-width: 100%;
   height: auto;
+}
+
+/* 本地图片读取失败时的占位（破图 + alt 仍会显示，这里补个可见边框） */
+.content :deep(img.img-missing) {
+  min-width: 120px;
+  min-height: 24px;
+  border: 1px dashed var(--border);
+  background: var(--surface);
 }
 
 .content :deep(hr) {
@@ -670,8 +870,14 @@ function formatBytes(n: number): string {
 }
 
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* 中等窄：隐藏侧栏，但编辑/预览仍左右并排 */

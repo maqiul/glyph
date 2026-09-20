@@ -53,6 +53,7 @@ pub fn run() {
             commands::ping,
             commands::get_app_info,
             commands::read_markdown_file,
+            commands::read_image_data_url,
             commands::write_markdown_file,
             commands::create_markdown_file,
             commands::extract_outline,

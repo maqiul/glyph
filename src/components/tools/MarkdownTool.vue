@@ -106,9 +106,39 @@ function toggleImmersive() {
   settings.setImmersive(!settings.immersive)
 }
 
+function setMeta(b: boolean) {
+  settings.setShowMeta(b)
+  savePersisted()
+}
+
 function removeRecent(path: string) {
   settings.removeRecent(path)
   savePersisted()
+}
+
+function clearAllRecent() {
+  settings.clearRecent()
+  savePersisted()
+}
+
+function pickPreviewFontSize(s: string) {
+  settings.setFontSize(s as 'S' | 'M' | 'L' | 'XL')
+  savePersisted()
+}
+
+function pickLineWidth(w: string) {
+  settings.setLineWidth(w as 'compact' | 'standard' | 'wide')
+  savePersisted()
+}
+
+function bumpEditorFontSize(delta: number) {
+  settings.setEditorFontSize(settings.editorFontSize + delta)
+  savePersisted()
+}
+
+function closeMenus() {
+  showRecent.value = false
+  showMdSettings.value = false
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -160,21 +190,37 @@ onUnmounted(() => {
         <span class="file-name">{{ currentTitle }}</span>
         <span v-if="settings.dirty" class="dirty-dot" title="Unsaved">●</span>
         <div class="mode-switch">
-          <button :class="{ active: settings.mode === 'edit' }" @click="setMode('edit')">{{ t('mode.edit') }}</button>
-          <button :class="{ active: settings.mode === 'split' }" @click="setMode('split')">{{ t('mode.split') }}</button>
-          <button :class="{ active: settings.mode === 'preview' }" @click="setMode('preview')">{{ t('mode.preview') }}</button>
+          <button :class="{ active: settings.mode === 'edit' }" @click="setMode('edit')">
+            {{ t('mode.edit') }}
+          </button>
+          <button :class="{ active: settings.mode === 'split' }" @click="setMode('split')">
+            {{ t('mode.split') }}
+          </button>
+          <button :class="{ active: settings.mode === 'preview' }" @click="setMode('preview')">
+            {{ t('mode.preview') }}
+          </button>
         </div>
       </div>
       <div class="tb-right">
         <div class="menu-anchor">
           <button class="btn" @click="showRecent = !showRecent">{{ t('toolbar.recent') }} ▾</button>
           <div v-if="showRecent" class="dropdown">
-            <div v-if="!settings.recentFiles.length" class="dropdown-empty">{{ t('recent.empty') }}</div>
+            <div v-if="!settings.recentFiles.length" class="dropdown-empty">
+              {{ t('recent.empty') }}
+            </div>
             <div v-for="p in settings.recentFiles" :key="p" class="dropdown-item-wrap">
-              <button class="dropdown-item" @click="loadPath(p)">{{ p.split(/[/\\]/).pop() }}</button>
+              <button class="dropdown-item" @click="loadPath(p)">
+                {{ p.split(/[/\\]/).pop() }}
+              </button>
               <button class="dropdown-x" @click.stop="removeRecent(p)">✕</button>
             </div>
-            <button v-if="settings.recentFiles.length" class="dropdown-clear" @click="settings.clearRecent(); savePersisted()">{{ t('recent.clearAll') }}</button>
+            <button
+              v-if="settings.recentFiles.length"
+              class="dropdown-clear"
+              @click="clearAllRecent"
+            >
+              {{ t('recent.clearAll') }}
+            </button>
           </div>
         </div>
         <button class="btn" @click="newFile" title="Ctrl+N">{{ t('toolbar.new') }}</button>
@@ -182,33 +228,70 @@ onUnmounted(() => {
           <span class="btn-icon">📂</span>
           <span>{{ t('toolbar.open') }}</span>
         </button>
-        <button class="btn" :disabled="!settings.dirty" @click="saveFile" title="Ctrl+S">{{ t('toolbar.save') }}</button>
+        <button class="btn" :disabled="!settings.dirty" @click="saveFile" title="Ctrl+S">
+          {{ t('toolbar.save') }}
+        </button>
         <div class="menu-anchor">
-          <button class="btn btn-icon-only" title="Markdown 设置" @click="showMdSettings = !showMdSettings">⚙</button>
+          <button
+            class="btn btn-icon-only"
+            title="Markdown 设置"
+            @click="showMdSettings = !showMdSettings"
+          >
+            ⚙
+          </button>
           <div v-if="showMdSettings" class="dropdown dropdown-settings" @click.stop>
             <div class="setting-group">
               <div class="setting-label">{{ t('settings.previewFontSize') }}</div>
               <div class="setting-row">
-                <button v-for="s in ['S', 'M', 'L', 'XL']" :key="s" :class="{ active: settings.fontSize === s }" @click="settings.setFontSize(s as any); savePersisted()">{{ s }}</button>
+                <button
+                  v-for="s in ['S', 'M', 'L', 'XL']"
+                  :key="s"
+                  :class="{ active: settings.fontSize === s }"
+                  @click="pickPreviewFontSize(s)"
+                >
+                  {{ s }}
+                </button>
               </div>
             </div>
             <div class="setting-group">
               <div class="setting-label">{{ t('settings.lineWidth') }}</div>
               <div class="setting-row">
-                <button v-for="w in (['compact', 'standard', 'wide'] as const)" :key="w" :class="{ active: settings.lineWidth === w }" @click="settings.setLineWidth(w); savePersisted()">{{ t(`settings.width.${w}`) }}</button>
+                <button
+                  v-for="w in ['compact', 'standard', 'wide']"
+                  :key="w"
+                  :class="{ active: settings.lineWidth === w }"
+                  @click="pickLineWidth(w)"
+                >
+                  {{ t(`settings.width.${w}`) }}
+                </button>
               </div>
             </div>
             <div class="setting-group">
-              <div class="setting-label">{{ t('settings.editorFontSize') }}: {{ settings.editorFontSize }}px</div>
+              <div class="setting-label">
+                {{ t('settings.editorFontSize') }}: {{ settings.editorFontSize }}px
+              </div>
               <div class="setting-row">
-                <button @click="settings.setEditorFontSize(settings.editorFontSize - 1); savePersisted()">A−</button>
-                <button @click="settings.setEditorFontSize(settings.editorFontSize + 1); savePersisted()">A+</button>
+                <button @click="bumpEditorFontSize(-1)">A−</button>
+                <button @click="bumpEditorFontSize(1)">A+</button>
               </div>
             </div>
             <div class="setting-group">
               <div class="setting-label">{{ t('settings.immersive') }}</div>
               <div class="setting-row">
-                <button @click="toggleImmersive">F11 {{ settings.immersive ? t('settings.on') : t('settings.off') }}</button>
+                <button @click="toggleImmersive">
+                  F11 {{ settings.immersive ? t('settings.on') : t('settings.off') }}
+                </button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <div class="setting-label">{{ t('settings.metaPanel') }}</div>
+              <div class="setting-row">
+                <button :class="{ active: settings.showMeta }" @click="setMeta(true)">
+                  {{ t('settings.on') }}
+                </button>
+                <button :class="{ active: !settings.showMeta }" @click="setMeta(false)">
+                  {{ t('settings.off') }}
+                </button>
               </div>
             </div>
           </div>
@@ -216,11 +299,20 @@ onUnmounted(() => {
       </div>
     </header>
 
-    <main class="md-main" @click="showRecent = false; showMdSettings = false">
+    <main class="md-main" @click="closeMenus">
       <Reader v-if="settings.currentPath" ref="readerRef" :path="settings.currentPath" />
       <div v-else class="empty-state">
         <div class="empty-icon">
-          <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg
+            width="72"
+            height="72"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
             <path d="M13 3v6h6" />
             <path d="M8 13h6M8 16h4" />
@@ -239,7 +331,12 @@ onUnmounted(() => {
         <p class="hint">{{ t('empty.dragHint') }}</p>
         <div v-if="settings.recentFiles.length" class="recent-block">
           <div class="recent-title">{{ t('empty.recent') }}</div>
-          <button v-for="p in settings.recentFiles" :key="p" class="recent-item" @click.stop="loadPath(p)">
+          <button
+            v-for="p in settings.recentFiles"
+            :key="p"
+            class="recent-item"
+            @click.stop="loadPath(p)"
+          >
             {{ p.split(/[/\\]/).pop() }}
           </button>
         </div>

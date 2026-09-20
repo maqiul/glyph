@@ -16,6 +16,7 @@ export default {
     lineWidth: '行宽',
     editorFontSize: '编辑器字号',
     immersive: '沉浸模式',
+    metaPanel: '信息面板',
     on: '开',
     off: '关',
     width: { compact: '紧凑', standard: '标准', wide: '宽松' },
