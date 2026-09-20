@@ -27,6 +27,8 @@ type Sub =
   | 'text'
   | 'diff'
   | 'json2ts'
+  | 'http'
+  | 'rmb'
   | 'radix'
   | 'icon'
   | 'svg'
@@ -427,6 +429,167 @@ function download(name: string, text: string) {
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
+
+// ---- HTTP 请求（Postman 式，走 Rust 后端 ureq 代理绕开 CORS）----
+const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'] as const
+const httpMethod = ref<(typeof HTTP_METHODS)[number]>('GET')
+const httpUrl = ref('')
+const httpHeadersText = ref('')
+const httpBody = ref('')
+const httpTimeout = ref(30)
+const httpSending = ref(false)
+const httpError = ref('')
+interface HttpResp {
+  status: number
+  ok: boolean
+  headers: [string, string][]
+  body: string
+  truncated: boolean
+  durationMs: number
+  sizeBytes: number
+}
+const httpResp = ref<HttpResp | null>(null)
+// 响应体尽量格式化 JSON（失败则原样）。
+const httpRespBody = computed(() => {
+  const b = httpResp.value?.body ?? ''
+  try {
+    return JSON.stringify(JSON.parse(b), null, 2)
+  } catch {
+    return b
+  }
+})
+function statusText(code: number): string {
+  const map: Record<number, string> = {
+    200: 'OK',
+    201: 'Created',
+    204: 'No Content',
+    301: 'Moved Permanently',
+    302: 'Found',
+    304: 'Not Modified',
+    400: 'Bad Request',
+    401: 'Unauthorized',
+    403: 'Forbidden',
+    404: 'Not Found',
+    405: 'Method Not Allowed',
+    408: 'Request Timeout',
+    429: 'Too Many Requests',
+    500: 'Internal Server Error',
+    502: 'Bad Gateway',
+    503: 'Service Unavailable',
+    504: 'Gateway Timeout',
+  }
+  return map[code] ?? ''
+}
+async function sendHttp() {
+  httpError.value = ''
+  httpResp.value = null
+  const url = httpUrl.value.trim()
+  if (!url) {
+    httpError.value = t('dev.httpNeedUrl')
+    return
+  }
+  const headers: [string, string][] = []
+  for (const line of httpHeadersText.value.split('\n')) {
+    const l = line.trim()
+    if (!l) continue
+    const idx = l.indexOf(':')
+    if (idx <= 0) continue
+    headers.push([l.slice(0, idx).trim(), l.slice(idx + 1).trim()])
+  }
+  httpSending.value = true
+  try {
+    httpResp.value = await invoke<HttpResp>('http_request', {
+      method: httpMethod.value,
+      url,
+      headers,
+      body: httpBody.value,
+      timeoutSecs: httpTimeout.value,
+    })
+  } catch (e) {
+    httpError.value = String(e)
+  } finally {
+    httpSending.value = false
+  }
+}
+
+// ---- 人民币大写转换 ----
+const rmbIn = ref('')
+const RMB_DIGITS = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖']
+const RMB_UNITS = ['', '拾', '佰', '仟']
+const RMB_SECTIONS = ['', '万', '亿', '万亿', '亿亿']
+function rmbInteger(intStr: string): string {
+  const len = intStr.length
+  let result = ''
+  let zero = false
+  for (let i = 0; i < len; i++) {
+    const d = Number(intStr[i])
+    const pos = len - 1 - i
+    const secIdx = Math.floor(pos / 4)
+    const inSec = pos % 4
+    if (d === 0) {
+      zero = true
+    } else {
+      if (zero) {
+        result += '零'
+        zero = false
+      }
+      result += RMB_DIGITS[d]! + RMB_UNITS[inSec]!
+    }
+    if (inSec === 0 && secIdx > 0) {
+      let hasNonZero = false
+      for (let k = Math.max(0, i - 3); k <= i; k++) {
+        if (Number(intStr[k]) !== 0) {
+          hasNonZero = true
+          break
+        }
+      }
+      if (hasNonZero) {
+        result += RMB_SECTIONS[secIdx]!
+        zero = false
+      }
+    }
+  }
+  return result
+}
+function toRmbUppercase(input: string): string {
+  let s = input
+    .trim()
+    .replace(/[¥￥,\s]/g, '')
+    .replace(/元$/, '')
+  if (!s) return ''
+  if (!/^-?\d+(\.\d+)?$/.test(s)) return '__INVALID__'
+  const neg = s.startsWith('-')
+  s = s.replace(/^-/, '')
+  const dot = s.indexOf('.')
+  const intStr = dot >= 0 ? s.slice(0, dot) : s
+  let fp = dot >= 0 ? s.slice(dot + 1) : ''
+  fp = fp.padEnd(2, '0')
+  // 用 BigInt 精确到分（含四舍五入），避免浮点误差。
+  let cents = BigInt((intStr || '0') + fp.slice(0, 2))
+  if (fp.length > 2 && Number(fp[2]) >= 5) cents += 1n
+  const yuan = cents / 100n
+  const frac = Number(cents % 100n)
+  const jiao = Math.floor(frac / 10)
+  const fen = frac % 10
+  let result = ''
+  if (yuan > 0n) result = rmbInteger(yuan.toString()) + '元'
+  if (jiao === 0 && fen === 0) {
+    result = (result || '零元') + '整'
+  } else {
+    if (jiao > 0) result += RMB_DIGITS[jiao]! + '角'
+    else if (result) result += '零'
+    if (fen > 0) result += RMB_DIGITS[fen]! + '分'
+    else result += '整'
+  }
+  return (neg ? '负' : '') + result
+}
+const rmbOut = computed(() => {
+  const v = toRmbUppercase(rmbIn.value)
+  return v === '__INVALID__' ? '' : v
+})
+const rmbErr = computed(() =>
+  toRmbUppercase(rmbIn.value) === '__INVALID__' ? t('dev.rmbInvalid') : '',
+)
 
 // ---- Radix ----
 const radixIn = ref('')
@@ -931,6 +1094,8 @@ async function copy(text: string) {
           'text',
           'diff',
           'json2ts',
+          'http',
+          'rmb',
           'radix',
           'icon',
           'svg',
@@ -1272,6 +1437,105 @@ async function copy(text: string) {
         </div>
         <div v-if="tsErr" class="dev-err">⚠ {{ tsErr }}</div>
         <JsonViewer ref="tsView" lang="typescript" :model-value="tsOut" class="json-out" />
+      </div>
+
+      <!-- HTTP 请求 -->
+      <div v-else-if="active === 'http'" class="dev-panel">
+        <div class="dev-actions">
+          <select v-model="httpMethod" class="http-method">
+            <option v-for="m in HTTP_METHODS" :key="m" :value="m">{{ m }}</option>
+          </select>
+          <input
+            v-model="httpUrl"
+            class="dev-line"
+            :placeholder="t('dev.httpUrlPh')"
+            spellcheck="false"
+            @keyup.enter="sendHttp"
+          />
+          <button class="btn" :disabled="httpSending" @click="sendHttp">
+            {{ httpSending ? t('dev.httpSending') : t('dev.httpSend') }}
+          </button>
+        </div>
+        <div class="http-cols">
+          <div class="http-col">
+            <div class="dev-section-head">{{ t('dev.httpHeaders') }}</div>
+            <textarea
+              v-model="httpHeadersText"
+              class="dev-io http-io"
+              :placeholder="t('dev.httpHeadersPh')"
+              spellcheck="false"
+            ></textarea>
+          </div>
+          <div class="http-col">
+            <div class="dev-section-head">{{ t('dev.httpBody') }}</div>
+            <textarea
+              v-model="httpBody"
+              class="dev-io http-io"
+              :placeholder="t('dev.httpBodyPh')"
+              spellcheck="false"
+            ></textarea>
+          </div>
+        </div>
+        <div class="dev-actions">
+          <label class="cfg-label">{{ t('dev.httpTimeout') }}</label>
+          <input v-model.number="httpTimeout" type="number" min="1" max="600" class="dev-num" />
+          <span class="cfg-label">{{ t('dev.httpTimeoutUnit') }}</span>
+        </div>
+        <div v-if="httpError" class="dev-err">⚠ {{ httpError }}</div>
+        <template v-if="httpResp">
+          <div class="http-status" :class="httpResp.ok ? 'ok' : 'err'">
+            <span class="http-code">{{ httpResp.status }} {{ statusText(httpResp.status) }}</span>
+            <span class="http-meta">{{ httpResp.durationMs }} ms · {{ httpResp.sizeBytes }} B</span>
+          </div>
+          <div v-if="httpResp.headers.length" class="http-resp-headers">
+            <div v-for="(h, i) in httpResp.headers" :key="i" class="http-hdr-row">
+              <code class="http-hdr-k">{{ h[0] }}</code
+              ><span>{{ h[1] }}</span>
+            </div>
+          </div>
+          <div class="dev-section-head">
+            {{ t('dev.httpResponse') }}
+            <span v-if="httpResp.truncated" class="cfg-label">· {{ t('dev.httpTruncated') }}</span>
+            <button class="btn" style="margin-left: auto" @click="copy(httpRespBody)">
+              {{ t('dev.copy') }}
+            </button>
+          </div>
+          <textarea
+            :value="httpRespBody"
+            class="dev-io"
+            readonly
+            spellcheck="false"
+            :placeholder="t('dev.output')"
+          ></textarea>
+        </template>
+      </div>
+
+      <!-- 人民币大写 -->
+      <div v-else-if="active === 'rmb'" class="dev-panel">
+        <div class="dev-actions">
+          <input
+            v-model="rmbIn"
+            class="dev-line"
+            :placeholder="t('dev.rmbPh')"
+            spellcheck="false"
+          />
+          <button class="btn" :disabled="!rmbOut" @click="copy(rmbOut)">
+            {{ t('dev.copy') }}
+          </button>
+        </div>
+        <div v-if="rmbErr" class="dev-err">⚠ {{ rmbErr }}</div>
+        <div class="rmb-out">{{ rmbOut || t('dev.rmbHint') }}</div>
+        <div class="dev-section-head">{{ t('dev.rmbSamples') }}</div>
+        <div class="rmb-samples">
+          <button
+            v-for="s in ['123.45', '1000000', '102.05', '0.9', '88888888.88']"
+            :key="s"
+            class="btn"
+            @click="rmbIn = s"
+          >
+            {{ s }}
+          </button>
+        </div>
       </div>
 
       <!-- Radix -->
@@ -1800,5 +2064,112 @@ async function copy(text: string) {
 .json-out {
   flex: 1;
   min-height: 160px;
+}
+
+.http-method {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.http-cols {
+  display: flex;
+  gap: 12px;
+  flex: none;
+}
+
+.http-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.http-io {
+  min-height: 90px;
+  flex: none;
+}
+
+.http-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.http-status.ok {
+  border-color: #1a7f37;
+  background: rgba(26, 127, 55, 0.1);
+}
+
+.http-status.err {
+  border-color: var(--error);
+  background: rgba(207, 34, 46, 0.1);
+}
+
+.http-code {
+  font-weight: 700;
+}
+
+.http-meta {
+  color: var(--text-muted);
+}
+
+.http-resp-headers {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  max-height: 160px;
+  overflow-y: auto;
+  font-size: 12.5px;
+  font-family: var(--font-mono);
+}
+
+.http-hdr-row {
+  display: flex;
+  gap: 10px;
+  padding: 3px 0;
+  border-bottom: 1px dashed var(--border);
+  word-break: break-word;
+}
+
+.http-hdr-row:last-child {
+  border-bottom: 0;
+}
+
+.http-hdr-k {
+  color: var(--accent);
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.rmb-out {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text);
+  word-break: break-word;
+  min-height: 60px;
+}
+
+.rmb-samples {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 </style>

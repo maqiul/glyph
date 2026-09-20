@@ -22,6 +22,7 @@ use tauri_plugin_global_shortcut::{Builder as GsBuilder, GlobalShortcutExt, Shor
 pub mod commands;
 pub mod encoding;
 pub mod error;
+pub mod http;
 pub mod markdown;
 // OCR 后端按平台分派，对上层统一暴露 `crate::ocr::{recognize_file, recognize_base64}`：
 // - 非 macOS：oar-ocr（ONNX Runtime），文件 ocr.rs
@@ -74,6 +75,7 @@ pub fn run() {
             commands::pdf_extract_pages,
             commands::pdf_split_ranges,
             commands::pdf_to_images,
+            commands::http_request,
         ])
         .setup(|app| {
             log::info!("Glyph 启动 v{}", env!("CARGO_PKG_VERSION"));

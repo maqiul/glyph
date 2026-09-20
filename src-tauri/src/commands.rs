@@ -319,6 +319,25 @@ pub async fn pdf_split_ranges(
     .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
 }
 
+// ---- 通用 HTTP 请求（Postman 式）----
+
+/// 发送任意 HTTP 请求（Rust 侧 ureq 代理，绕开 webview CORS）。
+/// headers 为键值对列表；4xx/5xx 也作为正常响应回传，仅传输层错误返回 Err。
+#[command]
+pub async fn http_request(
+    method: String,
+    url: String,
+    headers: Vec<(String, String)>,
+    body: String,
+    timeout_secs: u64,
+) -> Result<crate::http::HttpResult, GlyphError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::http::request(&method, &url, &headers, &body, timeout_secs)
+    })
+    .await
+    .map_err(|e| GlyphError::Internal(format!("join: {e}")))?
+}
+
 /// PDF 转图片（逐页渲染为 PNG/JPEG，pages 空 = 全部）
 #[command]
 pub async fn pdf_to_images(
