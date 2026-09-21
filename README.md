@@ -1,87 +1,89 @@
 # Glyph
 
-一个基于 **Tauri 2 + Vue 3** 的跨平台桌面效率工具箱。左侧活动栏在多个工具之间切换,数据全部本地处理,不上传云端。当前版本 **v0.2.2**。
+**English** | [中文](./README.zh-CN.md)
 
-## 功能 / 工具
+A cross-platform desktop productivity toolbox built with **Tauri 2 + Vue 3**. Switch between tools from the left activity bar; all data is processed locally and never uploaded. Current version: **v0.2.2**.
 
-在 `src/tools.ts` 的工具箱注册表中声明,新增工具 = 在这里加一项 + 建对应组件。当前包含:
+## Features / Tools
 
-| 工具 | 说明 |
+Declared in the tool registry at `src/tools.ts` — adding a tool = add an entry here + create its component. Currently includes:
+
+| Tool | Description |
 | --- | --- |
-| **Markdown** | Markdown 阅读 / 编辑 / 实时预览。基于 markdown-it + highlight.js,支持大纲、任务列表、锚点、代码高亮;可内联本地 / 远程 / base64 图片;右侧文件信息面板可显隐;编码自动检测。 |
-| **截图** | 全屏 / 区域截图,支持全局快捷键,截图结果以内联图片进入其它工具。 |
-| **OCR 识别** | 图片文字识别。按平台分派:Windows/Linux 走本地推理,macOS 走原生 Vision。 |
-| **开发者工具** | 面向开发的小工具集合,含 **HTTP 请求**(Postman 式:方法、URL、Headers、Body、历史记录)与**人民币大写**转换等。 |
-| **PDF** | PDF 查看 / 处理(纯 Rust 渲染,无需外部 dll)。 |
-| **文件编码** | 文本文件的编码检测与转换(GBK / UTF-8 等)。 |
-| **图片工具箱** | 图片格式转换、压缩等本地处理。 |
+| **Markdown** | Read / edit / live-preview Markdown. Powered by markdown-it + highlight.js with outline, task lists, anchors and code highlighting; can inline local / remote / base64 images; the right file-info panel can be shown/hidden; automatic encoding detection. |
+| **Screenshot** | Full-screen / region capture with a global hotkey; captures flow into other tools as inline images. |
+| **OCR** | Text recognition from images. Dispatched per platform: local inference on Windows/Linux, native Vision on macOS. |
+| **Dev Tools** | A collection of developer utilities, including an **HTTP client** (Postman-style: method, URL, headers, body, history) and **RMB amount-to-words** conversion. |
+| **PDF** | View / process PDFs (pure-Rust rendering, no external dll). |
+| **File Encoding** | Detect and convert text file encodings (GBK / UTF-8, etc.). |
+| **Image Toolbox** | Local image format conversion, compression, and more. |
 
-> UI 提供中 / 英双语(`src/locales/`),跟随系统语言,可手动切换。
+> The UI is bilingual (Chinese / English, in `src/locales/`), follows the system language, and can be switched manually.
 
-## 技术栈
+## Tech Stack
 
-- **桌面框架**:Tauri 2(Rust 后端 + 系统 WebView)
-- **前端**:Vue 3.5(`<script setup>` + TypeScript)、Vite 8(rolldown)、Pinia、vue-i18n
-- **编辑器 / 渲染**:CodeMirror 6、markdown-it、highlight.js
-- **后端能力**:`src-tauri/` 下的 Rust 命令(文件 IO、编码、截图、OCR、PDF、图像处理等)
+- **Desktop framework**: Tauri 2 (Rust backend + system WebView)
+- **Frontend**: Vue 3.5 (`<script setup>` + TypeScript), Vite 8 (rolldown), Pinia, vue-i18n
+- **Editor / rendering**: CodeMirror 6, markdown-it, highlight.js
+- **Backend capabilities**: Rust commands under `src-tauri/` (file IO, encoding, screenshot, OCR, PDF, image processing, etc.)
 
-## 环境要求
+## Prerequisites
 
-- **Node**:`^22.18.0 || >=24.12.0`(见 `package.json` 的 `engines`)
-- **pnpm**(仓库使用 pnpm 管理依赖,含 `pnpm-lock.yaml` / `pnpm-workspace.yaml`)
-- **Rust**(stable)+ 各平台 Tauri 前置依赖(Windows 需 WebView2 / MSVC;Linux 需 `webkit2gtk` 等;详见 [Tauri 官方平台指南](https://tauri.app/start/prerequisites/))
+- **Node**: `^22.18.0 || >=24.12.0` (see `engines` in `package.json`)
+- **pnpm** (this repo manages deps with pnpm; includes `pnpm-lock.yaml` / `pnpm-workspace.yaml`)
+- **Rust** (stable) + per-platform Tauri prerequisites (Windows needs WebView2 / MSVC; Linux needs `webkit2gtk`, etc.; see the [official Tauri platform guide](https://tauri.app/start/prerequisites/))
 
-## 开发
+## Development
 
 ```sh
 pnpm install
 
-# 前端热更新(仅浏览器,不含 Tauri 宿主)
+# Frontend hot-reload only (browser, without the Tauri host)
 pnpm dev
 
-# 完整桌面应用开发(启动 Vite + Tauri 宿主)
+# Full desktop app development (starts Vite + the Tauri host)
 pnpm exec tauri dev
 ```
 
-## 构建与打包
+## Build & Package
 
 ```sh
-# 前端生产构建:type-check(vue-tsc) + vite build
+# Production frontend build: type-check (vue-tsc) + vite build
 pnpm build
 
-# 打桌面安装包(Windows 示例,产物在 src-tauri/target/release/bundle/)
+# Build a desktop installer (Windows example; output under src-tauri/target/release/bundle/)
 pnpm exec tauri build --bundles nsis
 ```
 
-> `--bundles` 的合法取值随平台而变(Windows: `nsis` / `msi`;macOS: `dmg` / `app`;Linux: `deb` / `rpm` / `appimage`),不要传 `all`。
+> Valid `--bundles` values are platform-specific (Windows: `nsis` / `msi`; macOS: `dmg` / `app`; Linux: `deb` / `rpm` / `appimage`); do not pass `all`.
 
-## 其它脚本
+## Other Scripts
 
 ```sh
-pnpm type-check   # vue-tsc 类型检查
-pnpm test:unit    # Vitest 单元测试
-pnpm lint         # oxlint + eslint(--fix)
-pnpm format       # Prettier 格式化 src/
+pnpm type-check   # vue-tsc type checking
+pnpm test:unit    # Vitest unit tests
+pnpm lint         # oxlint + eslint (--fix)
+pnpm format       # Prettier formatting for src/
 ```
 
-## 发版约定
+## Release Convention
 
-- 发版通过**推送新的递增语义化 tag**(如 `v0.2.1` → `v0.2.2`)触发 GitHub Actions 三端 CI(`release.yml` 的 `on.push.tags: 'v*'`);**不复用、不 force 重指旧 tag**。
-- tag 版本需与安装包内版本一致:同步 `src-tauri/Cargo.toml` 与 `src-tauri/tauri.conf.json` 的 `version`(`tauri.conf.json` 的 version 决定产物文件名,如 `Glyph_0.2.2_x64-setup.exe`)。`Cargo.lock` 的 glyph 版本由 cargo 构建时自动同步。
+- Releases are triggered by **pushing a new, incrementing semantic tag** (e.g. `v0.2.1` → `v0.2.2`), which runs the three-platform GitHub Actions CI (`release.yml` on `on.push.tags: 'v*'`); never reuse or force-move an existing tag.
+- The tag version must match the in-app version: keep `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json` `version` in sync (the `tauri.conf.json` version determines the artifact name, e.g. `Glyph_0.2.2_x64-setup.exe`). The glyph version in `Cargo.lock` is auto-synced by cargo at build time.
 
-## 项目结构
+## Project Structure
 
 ```
 .
-├── src/                    # Vue 前端
-│   ├── components/         # 通用组件 + tools/ 下各工具组件
-│   ├── stores/             # Pinia(settings / persistent)
-│   ├── locales/            # 中 / 英文案
-│   └── tools.ts            # 工具箱注册表
-├── src-tauri/              # Tauri(Rust)后端
-│   ├── src/                # commands / markdown / ocr / pdf / screenshot 等模块
-│   ├── capabilities/       # 权限与 fs scope
-│   └── tauri.conf.json     # Tauri 配置(CSP、打包目标等)
+├── src/                    # Vue frontend
+│   ├── components/         # shared components + per-tool components under tools/
+│   ├── stores/             # Pinia (settings / persistent)
+│   ├── locales/            # Chinese / English strings
+│   └── tools.ts            # tool registry
+├── src-tauri/              # Tauri (Rust) backend
+│   ├── src/                # commands / markdown / ocr / pdf / screenshot modules
+│   ├── capabilities/       # permissions and fs scope
+│   └── tauri.conf.json     # Tauri config (CSP, bundle targets, etc.)
 └── README.md
 ```
 
