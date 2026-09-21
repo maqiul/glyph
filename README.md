@@ -8,15 +8,15 @@ A cross-platform desktop productivity toolbox built with **Tauri 2 + Vue 3**. Sw
 
 Declared in the tool registry at `src/tools.ts` — adding a tool = add an entry here + create its component. Currently includes:
 
-| Tool | Description |
-| --- | --- |
-| **Markdown** | Read / edit / live-preview Markdown. Powered by markdown-it + highlight.js with outline, task lists, anchors and code highlighting; can inline local / remote / base64 images; the right file-info panel can be shown/hidden; automatic encoding detection. |
-| **Screenshot** | Full-screen / region capture with a global hotkey; captures flow into other tools as inline images. |
-| **OCR** | Text recognition from images. Dispatched per platform: local inference on Windows/Linux, native Vision on macOS. |
-| **Dev Tools** | A collection of developer utilities, including an **HTTP client** (Postman-style: method, URL, headers, body, history) and **RMB amount-to-words** conversion. |
-| **PDF** | View / process PDFs (pure-Rust rendering, no external dll). |
-| **File Encoding** | Detect and convert text file encodings (GBK / UTF-8, etc.). |
-| **Image Toolbox** | Local image format conversion, compression, and more. |
+| Tool              | Description                                                                                                                                                                                                                                                 |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Markdown**      | Read / edit / live-preview Markdown. Powered by markdown-it + highlight.js with outline, task lists, anchors and code highlighting; can inline local / remote / base64 images; the right file-info panel can be shown/hidden; automatic encoding detection. |
+| **Screenshot**    | Full-screen / region capture with a global hotkey; captures flow into other tools as inline images.                                                                                                                                                         |
+| **OCR**           | Text recognition from images. Dispatched per platform: local inference on Windows/Linux, native Vision on macOS.                                                                                                                                            |
+| **Dev Tools**     | A collection of developer utilities, including an **HTTP client** (Postman-style: method, URL, headers, body, history) and **RMB amount-to-words** conversion.                                                                                              |
+| **PDF**           | View / process PDFs (pure-Rust rendering, no external dll).                                                                                                                                                                                                 |
+| **File Encoding** | Detect and convert text file encodings (GBK / UTF-8, etc.).                                                                                                                                                                                                 |
+| **Image Toolbox** | Local image format conversion, compression, and more.                                                                                                                                                                                                       |
 
 > The UI is bilingual (Chinese / English, in `src/locales/`), follows the system language, and can be switched manually.
 
