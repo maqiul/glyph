@@ -32,6 +32,9 @@ import properties from 'highlight.js/lib/languages/properties'
 import objectivec from 'highlight.js/lib/languages/objectivec'
 import plaintext from 'highlight.js/lib/languages/plaintext'
 import 'highlight.js/styles/github.css'
+import mermaid from 'mermaid'
+import katex from 'katex'
+import 'katex/dist/katex.min.css'
 import Editor from './Editor.vue'
 import { useSettingsStore } from '../stores/settings'
 import { useI18n } from 'vue-i18n'
@@ -100,12 +103,77 @@ const props = defineProps<{ path: string | null }>()
 const settings = useSettingsStore()
 const { t } = useI18n()
 
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' })
+
+/** 轻量 KaTeX 插件：inline $...$ + block $$...$$ */
+function mathPlugin(mdi: MarkdownIt) {
+  mdi.inline.ruler.after('escape', 'math_inline', (state, silent) => {
+    if (state.src[state.pos] !== '$') return false
+    if (state.src[state.pos + 1] === '$') return false
+    const start = state.pos + 1
+    const end = state.src.indexOf('$', start)
+    if (end === -1 || end === start) return false
+    if (!silent) {
+      const token = state.push('math_inline', 'math', 0)
+      token.content = state.src.slice(start, end)
+    }
+    state.pos = end + 1
+    return true
+  })
+  mdi.renderer.rules.math_inline = (tokens, idx) => {
+    try {
+      return katex.renderToString(tokens[idx]!.content, { throwOnError: false })
+    } catch {
+      return esc(tokens[idx]!.content)
+    }
+  }
+  mdi.block.ruler.before('fence', 'math_block', (state, startLine, endLine, silent) => {
+    const start = state.bMarks[startLine]! + state.tShift[startLine]!
+    const max = state.eMarks[startLine]!
+    if (state.src.slice(start, max).trim() !== '$$') return false
+    if (silent) return true
+    let next = startLine + 1
+    while (next < endLine) {
+      const s = state.bMarks[next]! + state.tShift[next]!
+      const e = state.eMarks[next]!
+      if (state.src.slice(s, e).trim() === '$$') break
+      next++
+    }
+    const token = state.push('math_block', 'math', 0)
+    token.block = true
+    token.content = state.getLines(startLine + 1, next, state.tShift[startLine]!, false)
+    state.line = next + 1
+    return true
+  })
+  mdi.renderer.rules.math_block = (tokens, idx) => {
+    try {
+      return `<div class="math-block">${katex.renderToString(tokens[idx]!.content, {
+        displayMode: true,
+        throwOnError: false,
+      })}</div>`
+    } catch {
+      return `<pre>${esc(tokens[idx]!.content)}</pre>`
+    }
+  }
+}
+
 const md: MarkdownIt = new MarkdownIt({
   html: false,
   linkify: true,
   typographer: true,
   breaks: false,
   highlight(str: string, lang: string): string {
+    if (lang === 'mermaid') {
+      return `<div class="mermaid">${esc(str)}</div>`
+    }
     if (lang && hljs.getLanguage(lang)) {
       try {
         const out = hljs.highlight(str, { language: lang, ignoreIllegals: true }).value
@@ -127,6 +195,7 @@ md.use(anchor, {
       .replace(/^-|-$/g, ''),
 })
 md.use(taskLists, { enabled: true, label: true, labelAfter: true })
+md.use(mathPlugin)
 
 // 状态
 const source = ref<string>('')
@@ -210,6 +279,19 @@ function resolveLocalImage(rawSrc: string, dir: string): string | null {
   return normalizePath(joined)
 }
 
+// 渲染 mermaid 图（.mermaid 占位 → SVG）
+async function renderMermaid() {
+  const nodes = Array.from(
+    document.querySelectorAll<HTMLElement>('.reader .mermaid:not([data-processed])'),
+  )
+  if (!nodes.length) return
+  try {
+    await mermaid.run({ nodes })
+  } catch (e) {
+    console.warn('mermaid render failed:', e)
+  }
+}
+
 // 扫描预览里待加载的本地图片，读成 data URL 内联（带缓存，避免每次编辑重复读盘）。
 async function hydrateImages() {
   const root = previewRef.value
@@ -279,6 +361,7 @@ async function loadFile(p: string) {
     await nextTick()
     headings.value = applyHeadingIds(parseHeadings(result.content))
     hydrateImages()
+    renderMermaid()
   } catch (e: unknown) {
     const msg = typeof e === 'string' ? e : ((e as any)?.message ?? JSON.stringify(e))
     error.value = msg
@@ -349,6 +432,7 @@ watch(source, (s) => {
   nextTick().then(() => {
     headings.value = applyHeadingIds(parseHeadings(s))
     hydrateImages()
+    renderMermaid()
   })
 })
 
@@ -397,7 +481,13 @@ async function save() {
   }
 }
 
-defineExpose({ save })
+defineExpose({
+  save,
+  getHtml: () => html.value,
+  openSearch() {
+    editorRef.value?.openSearch()
+  },
+})
 
 // 光标 → TOC 高亮
 function onCursorChange(line: number) {
@@ -878,6 +968,28 @@ function formatBytes(n: number): string {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Mermaid / KaTeX */
+.content :deep(.mermaid) {
+  display: flex;
+  justify-content: center;
+  margin: 1em 0;
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.content :deep(.math-block) {
+  overflow-x: auto;
+  padding: 8px 0;
+  margin: 1em 0;
+  text-align: center;
+}
+
+.content :deep(.katex) {
+  font-size: 1.1em;
 }
 
 /* 中等窄：隐藏侧栏，但编辑/预览仍左右并排 */

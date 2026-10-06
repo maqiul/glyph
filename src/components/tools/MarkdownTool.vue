@@ -14,6 +14,7 @@ const errorMessage = ref<string | null>(null)
 const readerRef = ref<InstanceType<typeof Reader> | null>(null)
 const showRecent = ref(false)
 const showMdSettings = ref(false)
+const showExport = ref(false)
 
 const currentTitle = computed(() => {
   if (!settings.currentPath) return 'Markdown'
@@ -106,6 +107,54 @@ function toggleImmersive() {
   settings.setImmersive(!settings.immersive)
 }
 
+const EXPORT_CSS = `
+body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;line-height:1.7;color:#1f2328;max-width:860px;margin:40px auto;padding:0 24px}
+h1,h2,h3{line-height:1.3;margin:1.5em 0 .5em}
+h1{font-size:1.9em;border-bottom:1px solid #d0d7de;padding-bottom:.3em}
+h2{font-size:1.5em}h3{font-size:1.2em}
+p{margin:.8em 0}
+code{background:#f6f8fa;padding:2px 6px;border-radius:3px;font-family:Consolas,monospace;font-size:.9em}
+pre{background:#f6f8fa;padding:16px;border-radius:6px;overflow:auto;border:1px solid #d0d7de}
+pre code{background:transparent;padding:0}
+a{color:#0969da}
+blockquote{margin:1em 0;padding:.5em 1em;border-left:3px solid #0969da;background:#f6f8fa;color:#57606a}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #d0d7de;padding:8px 12px}
+th{background:#f6f8fa}
+img{max-width:100%}
+hr{border:0;border-top:1px solid #d0d7de;margin:2em 0}
+`
+
+function b64FromUtf8(str: string): string {
+  const bytes = new TextEncoder().encode(str)
+  let bin = ''
+  bytes.forEach((b) => (bin += String.fromCharCode(b)))
+  return btoa(bin)
+}
+
+async function exportHtml() {
+  const body = readerRef.value?.getHtml?.()
+  if (!body) return
+  const name = (currentTitle.value || 'document').replace(/\.md$/i, '') + '.html'
+  const out = await save({ defaultPath: name, filters: [{ name: 'HTML', extensions: ['html'] }] })
+  if (!out) return
+  const full =
+    `<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>${currentTitle.value}</title>` +
+    `<style>${EXPORT_CSS}</style></head><body><div class="markdown-body">${body}</div></body></html>`
+  try {
+    await invoke('write_file_base64', { path: out, dataBase64: b64FromUtf8(full) })
+    errorMessage.value = null
+  } catch (e) {
+    errorMessage.value = `导出失败：${e}`
+  }
+  showExport.value = false
+}
+
+function exportPdf() {
+  showExport.value = false
+  window.print()
+}
+
 function setMeta(b: boolean) {
   settings.setShowMeta(b)
   savePersisted()
@@ -160,6 +209,9 @@ function handleKeydown(e: KeyboardEvent) {
   } else if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'e') {
     e.preventDefault()
     cycleMode()
+  } else if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'f') {
+    e.preventDefault()
+    readerRef.value?.openSearch()
   } else if (e.key === 'F11') {
     e.preventDefault()
     toggleImmersive()
@@ -231,6 +283,13 @@ onUnmounted(() => {
         <button class="btn" :disabled="!settings.dirty" @click="saveFile" title="Ctrl+S">
           {{ t('toolbar.save') }}
         </button>
+        <div class="menu-anchor">
+          <button class="btn" :disabled="!settings.currentPath" @click="showExport = !showExport; showMdSettings = false">{{ t('toolbar.export') }} ▾</button>
+          <div v-if="showExport" class="dropdown">
+            <button class="dropdown-item" @click="exportHtml">{{ t('toolbar.exportHtml') }}</button>
+            <button class="dropdown-item" @click="exportPdf">{{ t('toolbar.exportPdf') }}</button>
+          </div>
+        </div>
         <div class="menu-anchor">
           <button
             class="btn btn-icon-only"

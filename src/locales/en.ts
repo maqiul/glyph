@@ -7,6 +7,9 @@ export default {
     save: 'Save',
     themeTip: 'Theme (Ctrl+D)',
     settingsTip: 'Settings',
+    export: 'Export',
+    exportHtml: 'Export HTML',
+    exportPdf: 'Print / Export PDF',
   },
   recent: { empty: 'No recent files', clearAll: 'Clear all' },
   settings: {

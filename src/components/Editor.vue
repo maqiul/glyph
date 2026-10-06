@@ -3,6 +3,7 @@ import { onMounted, onBeforeUnmount, ref, watch, computed } from 'vue'
 import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, drawSelection, highlightActiveLine } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
+import { searchKeymap, openSearchPanel } from '@codemirror/search'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { syntaxHighlighting, HighlightStyle, defaultHighlightStyle, bracketMatching, indentOnInput } from '@codemirror/language'
@@ -53,6 +54,7 @@ function makeState(doc: string): EditorState {
       markdown({ base: markdownLanguage, codeLanguages: languages }),
       keymap.of([
         ...defaultKeymap,
+        ...searchKeymap,
         ...historyKeymap,
         indentWithTab,
         {
@@ -130,6 +132,9 @@ function scrollToLine(line: number) {
 }
 
 defineExpose({
+  openSearch() {
+    if (view) openSearchPanel(view)
+  },
   scrollToLine(line: number) {
     pendingCursor = line
     scrollToLine(line)

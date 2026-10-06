@@ -73,3 +73,37 @@ body {
   background: var(--accent);
   color: var(--accent-fg);
 }
+
+/* 打印 / 导出 PDF：隐藏所有 chrome，只留正文 */
+@media print {
+  .global-bar,
+  .activity-bar,
+  .toolbar,
+  .statusbar,
+  .toc,
+  .meta-panel,
+  .editor-pane,
+  .save-toast {
+    display: none !important;
+  }
+  .app-shell,
+  .md-tool,
+  .reader,
+  .reader-layout,
+  .reader-layout.mode-edit,
+  .reader-layout.mode-split,
+  .reader-layout.mode-preview {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .content {
+    max-width: 100% !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+}

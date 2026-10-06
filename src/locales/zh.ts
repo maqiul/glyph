@@ -7,6 +7,9 @@ export default {
     save: '保存',
     themeTip: '主题 (Ctrl+D)',
     settingsTip: '设置',
+    export: '导出',
+    exportHtml: '导出 HTML',
+    exportPdf: '打印 / 导出 PDF',
   },
   recent: { empty: '暂无最近文件', clearAll: '清空全部' },
   settings: {
