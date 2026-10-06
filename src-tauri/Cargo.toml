@@ -52,6 +52,8 @@ pdf-extract = "0.12"
 pdf_oxide = { version = "0.3.78", features = ["rendering"] }
 # 系统剪贴板（将截图/标注图片复制到剪贴板）
 arboard = "3"
+tauri-plugin-updater = "2.12.0"
+tauri-plugin-process = "2.3.1"
 
 # OCR 后端按平台分派：非 macOS 用 oar-ocr(ONNX Runtime)；
 # macOS 改用原生 Vision（见 ocr_vision.rs / ocr_vision.m），不再依赖 ort，

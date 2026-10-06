@@ -74,6 +74,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           # 仅当由 tag 触发时创建/发布 Release；手动触发时只上传 Artifacts
           tagName: ${{ github.ref_name }}
@@ -82,7 +84,7 @@ jobs:
           releaseDraft: false
           prerelease: false
           includeRelease: ${{ github.ref_type == 'tag' }}
-          includeUpdaterJson: false
+          includeUpdaterJson: true
           args: ${{ matrix.args }}
 
   # Linux：单独跑在 fedora:41 容器里（PipeWire 1.2，满足 xcap→libspa 0.10 编译）。
@@ -128,6 +130,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Glyph ${{ github.ref_name }}'
@@ -135,5 +139,5 @@ jobs:
           releaseDraft: false
           prerelease: false
           includeRelease: ${{ github.ref_type == 'tag' }}
-          includeUpdaterJson: false
+          includeUpdaterJson: true
           args: '--bundles deb rpm'

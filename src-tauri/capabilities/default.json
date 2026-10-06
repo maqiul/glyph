@@ -38,6 +38,8 @@
         { "path": "$RESOURCE/**" }
       ]
     },
+    "updater:default",
+    "process:default",
     "store:default",
     "store:allow-get",
     "store:allow-set",

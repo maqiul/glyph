@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { emit, listen } from '@tauri-apps/api/event'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
+import { check } from '@tauri-apps/plugin-updater'
+import { relaunch } from '@tauri-apps/plugin-process'
 import ActivityBar from './components/ActivityBar.vue'
 import CommandPalette from './components/CommandPalette.vue'
 import { TOOLS } from './tools'
@@ -41,6 +43,31 @@ async function bootstrap() {
 function toggleTheme() {
   settings.toggleTheme()
   savePersisted()
+}
+
+const checkingUpdate = ref(false)
+const updateStatus = ref('')
+
+async function checkForUpdate() {
+  checkingUpdate.value = true
+  updateStatus.value = t('settings.checking')
+  try {
+    const update = await check()
+    if (update) {
+      updateStatus.value = t('settings.updateFound', { v: update.version })
+      await update.downloadAndInstall((event) => {
+        if (event.event === 'Progress') updateStatus.value = t('settings.downloading')
+        if (event.event === 'Finished') updateStatus.value = t('settings.updateReady')
+      })
+      await relaunch()
+    } else {
+      updateStatus.value = t('settings.upToDate')
+      checkingUpdate.value = false
+    }
+  } catch (e) {
+    updateStatus.value = t('settings.updateFailed', { e: String(e) })
+    checkingUpdate.value = false
+  }
 }
 
 function changeLang(l: Lang) {
@@ -170,6 +197,13 @@ onUnmounted(() => {
                   🌙 Dark
                 </button>
               </div>
+            </div>
+            <div class="setting-group">
+              <div class="setting-label">{{ t('settings.update') }}</div>
+              <div class="setting-row">
+                <button :disabled="checkingUpdate" @click="checkForUpdate">{{ t('settings.checkUpdate') }}</button>
+              </div>
+              <div v-if="updateStatus" class="update-status">{{ updateStatus }}</div>
             </div>
             <p v-if="appInfo" class="about">
               Glyph v{{ appInfo.version }} · Tauri {{ appInfo.tauri_version }} ·
@@ -360,5 +394,13 @@ onUnmounted(() => {
 .dir-clear {
   flex: 0 0 auto;
   width: 32px;
+}
+
+.update-status {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  word-break: break-word;
 }
 </style>
