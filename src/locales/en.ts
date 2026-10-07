@@ -52,6 +52,7 @@ export default {
     cursor: 'Cursor',
     savedToast: 'Saved · {bytes}',
     saveFailed: 'Save failed: {msg}',
+    fileChangedDirty: 'The file changed on disk. Reloading will discard your unsaved edits. Continue?',
   },
   confirm: { discard: 'You have unsaved changes. Discard them?' },
   errors: {

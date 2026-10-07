@@ -52,6 +52,7 @@ export default {
     cursor: '光标',
     savedToast: '已保存 · {bytes}',
     saveFailed: '保存失败：{msg}',
+    fileChangedDirty: '文件已被外部修改。重新加载将丢弃你未保存的改动，确定？',
   },
   confirm: { discard: '有未保存的更改，确定放弃？' },
   errors: {

@@ -8,7 +8,7 @@ use std::borrow::Cow;
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Serialize;
-use tauri::command;
+use tauri::{command, AppHandle};
 
 use crate::error::GlyphError;
 use crate::markdown::{extract_headings, render_file, RenderOptions2, RenderResult};
@@ -319,6 +319,26 @@ pub async fn pdf_delete(path: String, pages: String, out: String) -> Result<(), 
 #[command]
 pub fn pdf_page_count(path: String) -> Result<u32, GlyphError> {
     crate::pdf::page_count(std::path::Path::new(&path))
+}
+
+// ---- 文件监听 ----
+
+/// 开始监听指定文件（外部修改时 emit file-changed）
+#[command]
+pub fn watch_file(app: AppHandle, path: String) -> Result<(), GlyphError> {
+    crate::watch::start_watch(&app, path).map_err(GlyphError::Internal)
+}
+
+/// 停止文件监听
+#[command]
+pub fn unwatch_file(app: AppHandle) {
+    crate::watch::stop_watch(&app);
+}
+
+/// 标记刚保存（短暂忽略 file-changed）
+#[command]
+pub fn note_saved(app: AppHandle) {
+    crate::watch::note_saved(&app);
 }
 
 /// 提取 PDF 文字

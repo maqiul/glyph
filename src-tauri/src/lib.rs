@@ -35,6 +35,7 @@ pub mod ocr;
 pub mod ocr_cloud;
 pub mod pdf;
 pub mod screenshot;
+pub mod watch;
 
 /// 全局唤起快捷键（app 在后台/最小化时把它带回前台）
 const GLOBAL_SHORTCUT: &str = "CmdOrCtrl+Shift+G";
@@ -79,9 +80,13 @@ pub fn run() {
             commands::pdf_split_ranges,
             commands::pdf_to_images,
             commands::http_request,
+            commands::watch_file,
+            commands::unwatch_file,
+            commands::note_saved,
         ])
         .setup(|app| {
             log::info!("Glyph 启动 v{}", env!("CARGO_PKG_VERSION"));
+            app.manage(watch::FileWatcher::new());
 
             // 全局快捷键：唤起主窗（Ctrl+Shift+G）
             if let Err(e) =

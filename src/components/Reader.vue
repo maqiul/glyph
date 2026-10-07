@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import MarkdownIt from 'markdown-it'
 import anchor from 'markdown-it-anchor'
 import taskLists from 'markdown-it-task-lists'
@@ -362,6 +363,7 @@ async function loadFile(p: string) {
     headings.value = applyHeadingIds(parseHeadings(result.content))
     hydrateImages()
     renderMermaid()
+    invoke('watch_file', { path: p }).catch(() => {})
   } catch (e: unknown) {
     const msg = typeof e === 'string' ? e : ((e as any)?.message ?? JSON.stringify(e))
     error.value = msg
@@ -447,13 +449,28 @@ let mq: MediaQueryList | null = null
 function onMqChange(e: MediaQueryListEvent) {
   narrow.value = e.matches
 }
-onMounted(() => {
+let unlistenFile: (() => void) | null = null
+onMounted(async () => {
   mq = window.matchMedia('(max-width: 900px)')
   narrow.value = mq.matches
   mq.addEventListener('change', onMqChange)
+  try {
+    unlistenFile = await listen<{ path: string }>('file-changed', (e) => {
+      if (!props.path || e.payload.path !== props.path) return
+      if (settings.dirty) {
+        if (confirm(t('reader.fileChangedDirty'))) loadFile(props.path)
+      } else {
+        loadFile(props.path)
+      }
+    })
+  } catch (err) {
+    console.warn('file-changed listen failed:', err)
+  }
 })
 onUnmounted(() => {
   mq?.removeEventListener('change', onMqChange)
+  unlistenFile?.()
+  if (props.path) invoke('unwatch_file').catch(() => {})
 })
 
 // 保存
@@ -469,6 +486,7 @@ async function save() {
     bytes.value = result.bytes
     encoding.value = result.encoding
     settings.setDirty(false)
+    invoke('note_saved').catch(() => {})
     saveToast.value = t('reader.savedToast', { bytes: formatBytes(result.bytes) })
     setTimeout(() => {
       saveToast.value = null
