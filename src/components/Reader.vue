@@ -487,6 +487,9 @@ defineExpose({
   openSearch() {
     editorRef.value?.openSearch()
   },
+  insertAtCursor(text: string) {
+    editorRef.value?.insertText(text)
+  },
 })
 
 // 光标 → TOC 高亮

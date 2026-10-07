@@ -135,6 +135,15 @@ defineExpose({
   openSearch() {
     if (view) openSearchPanel(view)
   },
+  insertText(text: string) {
+    if (!view) return
+    const head = view.state.selection.main.head
+    view.dispatch({
+      changes: { from: head, insert: text },
+      selection: { anchor: head + text.length },
+    })
+    view.focus()
+  },
   scrollToLine(line: number) {
     pendingCursor = line
     scrollToLine(line)

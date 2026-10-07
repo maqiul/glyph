@@ -114,6 +114,7 @@ export default {
     dirLabel: '截图保存目录',
     dirDefault: '默认（下载）',
     dirChoose: '更改',
+    insertMd: '插入 Markdown',
     ocrBtn: '识别文字',
     ocrBusy: '识别中…',
     ocrResult: '识别结果',
@@ -137,6 +138,9 @@ export default {
     apiKey: 'API Key',
     secretKey: 'Secret Key',
     cloudNote: '选择图片，云端识别（需填服务商密钥）',
+    clipboardBtn: '识别剪贴板图片',
+    clipboard: '剪贴板',
+    noClipboardImg: '剪贴板中没有图片',
   },
   dev: {
     title: '开发者工具',

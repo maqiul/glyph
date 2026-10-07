@@ -115,6 +115,7 @@ export default {
     dirLabel: 'Screenshot folder',
     dirDefault: 'Default (Downloads)',
     dirChoose: 'Change',
+    insertMd: 'Insert to Markdown',
     ocrBtn: 'Recognize',
     ocrBusy: 'Recognizing…',
     ocrResult: 'Result',
@@ -138,6 +139,9 @@ export default {
     apiKey: 'API Key',
     secretKey: 'Secret Key',
     cloudNote: 'Pick an image; cloud recognition (provider key required)',
+    clipboardBtn: 'Recognize Clipboard',
+    clipboard: 'Clipboard',
+    noClipboardImg: 'No image in clipboard',
   },
   dev: {
     title: 'DevTools',

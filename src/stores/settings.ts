@@ -26,6 +26,8 @@ interface SettingsState {
   ocrSecretKey: string
   /** 全局截图快捷键触发标记（瞬态，不持久化） */
   pendingCapture: boolean
+  /** 跨工具待插入 Markdown 的内容（截图 OCR 结果等，瞬态） */
+  pendingInsert: string
 }
 
 export const useSettingsStore = defineStore('settings', {
@@ -48,6 +50,7 @@ export const useSettingsStore = defineStore('settings', {
     ocrApiKey: '',
     ocrSecretKey: '',
     pendingCapture: false,
+    pendingInsert: '',
   }),
   actions: {
     setActiveTool(t: ActiveTool) {
@@ -115,6 +118,9 @@ export const useSettingsStore = defineStore('settings', {
     setOcrKeys(key: string, secret: string) {
       this.ocrApiKey = key
       this.ocrSecretKey = secret
+    },
+    setPendingInsert(text: string) {
+      this.pendingInsert = text
     },
     /** 全局截图快捷键：切到截图工具并置待捕获标记，由 ScreenshotTool 消费 */
     requestScreenshotCapture() {

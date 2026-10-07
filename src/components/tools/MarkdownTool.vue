@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
@@ -189,6 +189,18 @@ function closeMenus() {
   showRecent.value = false
   showMdSettings.value = false
 }
+
+// 消费跨工具传来的待插入内容（截图 OCR → Markdown）
+watch(
+  () => settings.pendingInsert,
+  (text) => {
+    if (!text) return
+    nextTick(() => {
+      readerRef.value?.insertAtCursor(text)
+      settings.setPendingInsert('')
+    })
+  },
+)
 
 function handleKeydown(e: KeyboardEvent) {
   // keep-alive 下本组件切走时不销毁，避免快捷键误触发其他工具

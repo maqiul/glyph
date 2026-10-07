@@ -87,6 +87,52 @@ async function recognize(path: string) {
   }
 }
 
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((res, rej) => {
+    const r = new FileReader()
+    r.onloadend = () => res(((r.result as string) || '').split(',')[1] ?? '')
+    r.onerror = rej
+    r.readAsDataURL(blob)
+  })
+}
+
+async function recognizeClipboard() {
+  busy.value = true
+  error.value = null
+  copied.value = false
+  try {
+    const items = await navigator.clipboard.read()
+    let b64 = ''
+    for (const item of items) {
+      const type = item.types.find((ty) => ty.startsWith('image/'))
+      if (type) {
+        b64 = await blobToBase64(await item.getType(type))
+        break
+      }
+    }
+    if (!b64) {
+      error.value = t('ocr.noClipboardImg')
+      busy.value = false
+      return
+    }
+    sourceName.value = t('ocr.clipboard')
+    if (settings.ocrEngine === 'cloud') {
+      text.value = await invoke<string>('ocr_recognize_cloud_base64', {
+        imageBase64: b64,
+        provider: settings.ocrProvider,
+        apiKey: settings.ocrApiKey,
+        secretKey: settings.ocrSecretKey,
+      })
+    } else {
+      text.value = await invoke<string>('ocr_recognize_base64', { imageBase64: b64 })
+    }
+  } catch (e: unknown) {
+    error.value = t('ocr.failed', { msg: String(e) })
+  } finally {
+    busy.value = false
+  }
+}
+
 async function copy() {
   try {
     await navigator.clipboard.writeText(text.value)
@@ -115,9 +161,14 @@ onUnmounted(() => unDrop?.())
         <h1>{{ t('placeholder.ocrTitle') }}</h1>
         <p class="ocr-hint">{{ hint }}</p>
       </div>
-      <button class="btn btn-primary" :disabled="busy" @click="pickAndRecognize">
-        {{ busy ? t('ocr.recognizing') : t('ocr.pickImage') }}
-      </button>
+      <div class="ocr-actions">
+        <button class="btn btn-primary" :disabled="busy" @click="pickAndRecognize">
+          {{ busy ? t('ocr.recognizing') : t('ocr.pickImage') }}
+        </button>
+        <button class="btn" :disabled="busy" @click="recognizeClipboard">
+          {{ t('ocr.clipboardBtn') }}
+        </button>
+      </div>
     </div>
 
     <div class="ocr-config">
@@ -214,6 +265,12 @@ onUnmounted(() => unDrop?.())
   font-weight: 700;
   margin: 0 0 6px;
   color: var(--text);
+}
+
+.ocr-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .ocr-hint {

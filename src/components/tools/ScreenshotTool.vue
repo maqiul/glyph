@@ -143,6 +143,12 @@ async function recognizeShot(c: CaptureResult) {
   }
 }
 
+function insertToMd(text: string) {
+  if (!text.trim()) return
+  settings.setPendingInsert(text)
+  settings.setActiveTool('markdown')
+}
+
 async function restoreMain() {
   const w = getCurrentWindow()
   await w.show()
@@ -277,7 +283,14 @@ watch(() => settings.pendingCapture, consumePendingCapture)
             </div>
           </div>
           <div v-if="ocrResults[c.index] !== undefined" class="shot-ocr">
-            <div class="shot-ocr-head">{{ t('screenshot.ocrResult') }}</div>
+            <div class="shot-ocr-head">
+              <span>{{ t('screenshot.ocrResult') }}</span>
+              <button
+                class="btn btn-small"
+                :disabled="!ocrResults[c.index]"
+                @click="insertToMd(ocrResults[c.index] || '')"
+              >{{ t('screenshot.insertMd') }}</button>
+            </div>
             <textarea
               class="shot-ocr-text"
               readonly
@@ -511,6 +524,9 @@ watch(() => settings.pendingCapture, consumePendingCapture)
 }
 
 .shot-ocr-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
