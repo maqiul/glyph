@@ -8,7 +8,7 @@ use std::borrow::Cow;
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Serialize;
-use tauri::{command, AppHandle};
+use tauri::{command, AppHandle, State};
 
 use crate::error::GlyphError;
 use crate::markdown::{extract_headings, render_file, RenderOptions2, RenderResult};
@@ -339,6 +339,55 @@ pub fn unwatch_file(app: AppHandle) {
 #[command]
 pub fn note_saved(app: AppHandle) {
     crate::watch::note_saved(&app);
+}
+
+// ---- FTP ----
+
+#[command]
+pub fn ftp_connect(
+    sess: State<crate::ftp::FtpSession>,
+    host: String,
+    port: u16,
+    user: String,
+    pass: String,
+) -> Result<(), GlyphError> {
+    crate::ftp::connect(&sess, host, port, user, pass)
+}
+
+#[command]
+pub fn ftp_disconnect(sess: State<crate::ftp::FtpSession>) {
+    crate::ftp::disconnect(&sess);
+}
+
+#[command]
+pub fn ftp_connected(sess: State<crate::ftp::FtpSession>) -> bool {
+    crate::ftp::is_connected(&sess)
+}
+
+#[command]
+pub fn ftp_list(
+    sess: State<crate::ftp::FtpSession>,
+    path: String,
+) -> Result<Vec<crate::ftp::FtpEntry>, GlyphError> {
+    crate::ftp::list(&sess, path)
+}
+
+#[command]
+pub fn ftp_download(
+    sess: State<crate::ftp::FtpSession>,
+    remote: String,
+    local: String,
+) -> Result<(), GlyphError> {
+    crate::ftp::download(&sess, remote, local)
+}
+
+#[command]
+pub fn ftp_upload(
+    sess: State<crate::ftp::FtpSession>,
+    local: String,
+    remote: String,
+) -> Result<(), GlyphError> {
+    crate::ftp::upload(&sess, local, remote)
 }
 
 /// 提取 PDF 文字

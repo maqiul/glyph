@@ -20,6 +20,7 @@ use tauri::{
 use tauri_plugin_global_shortcut::{Builder as GsBuilder, GlobalShortcutExt, ShortcutState};
 
 pub mod commands;
+pub mod ftp;
 pub mod encoding;
 pub mod error;
 pub mod http;
@@ -83,10 +84,17 @@ pub fn run() {
             commands::watch_file,
             commands::unwatch_file,
             commands::note_saved,
+            commands::ftp_connect,
+            commands::ftp_disconnect,
+            commands::ftp_connected,
+            commands::ftp_list,
+            commands::ftp_download,
+            commands::ftp_upload,
         ])
         .setup(|app| {
             log::info!("Glyph 启动 v{}", env!("CARGO_PKG_VERSION"));
             app.manage(watch::FileWatcher::new());
+            app.manage(ftp::FtpSession::new());
 
             // 全局快捷键：唤起主窗（Ctrl+Shift+G）
             if let Err(e) =

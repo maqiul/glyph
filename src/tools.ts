@@ -7,6 +7,7 @@ import DevTool from './components/tools/DevTool.vue'
 import PdfTool from './components/tools/PdfTool.vue'
 import FileTool from './components/tools/FileTool.vue'
 import ImageTool from './components/tools/ImageTool.vue'
+import FtpTool from './components/tools/FtpTool.vue'
 
 export interface ToolDef {
   id: ActiveTool
@@ -62,5 +63,11 @@ export const TOOLS: ToolDef[] = [
     labelKey: 'tools.image',
     icon: 'M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z M3 16l5-5 4 4 3-3 6 6 M8 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z',
     component: ImageTool,
+  },
+  {
+    id: 'ftp',
+    labelKey: 'tools.ftp',
+    icon: 'M4 5h16v5H4z M4 14h16v5H4z M7 7.5h.01 M7 16.5h.01',
+    component: FtpTool,
   },
 ]
