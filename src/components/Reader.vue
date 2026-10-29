@@ -100,7 +100,7 @@ interface WriteResult {
   encoding: string
 }
 
-const props = defineProps<{ path: string | null }>()
+const props = defineProps<{ path: string | null; active?: boolean }>()
 const settings = useSettingsStore()
 const { t } = useI18n()
 
@@ -357,7 +357,7 @@ async function loadFile(p: string) {
     title.value = result.title
     bytes.value = result.bytes
     encoding.value = result.encoding
-    settings.setDirty(false)
+    if (props.active) settings.setDirty(false)
     loading.value = false
     await nextTick()
     headings.value = applyHeadingIds(parseHeadings(result.content))
@@ -428,7 +428,7 @@ watch(source, (s) => {
   if (skipDirty) {
     skipDirty = false
   } else {
-    settings.setDirty(true)
+    if (props.active) settings.setDirty(true)
   }
   // 编辑后重新抽标题 + 给新 DOM 打稳定 id
   nextTick().then(() => {

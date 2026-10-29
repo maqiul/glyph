@@ -15,6 +15,8 @@ interface PersistedState {
   editorFontSize: number
   recentFiles: string[]
   screenshotDir?: string
+  tabs?: string[]
+  currentPath?: string | null
   ocrEngine?: 'local' | 'cloud'
   ocrProvider?: 'baidu' | 'ali' | 'tencent'
   ocrApiKey?: string
@@ -43,6 +45,8 @@ export async function loadPersisted(): Promise<void> {
       if (saved.showMeta !== undefined) settings.setShowMeta(saved.showMeta)
       if (saved.editorFontSize) settings.setEditorFontSize(saved.editorFontSize)
       if (saved.recentFiles) settings.recentFiles = saved.recentFiles
+      if (saved.tabs) settings.tabs = saved.tabs.map((p) => ({ path: p, dirty: false }))
+      if (saved.currentPath) settings.currentPath = saved.currentPath
       if (saved.screenshotDir !== undefined) settings.setScreenshotDir(saved.screenshotDir)
       if (saved.ocrEngine) settings.setOcrEngine(saved.ocrEngine)
       if (saved.ocrProvider) settings.setOcrProvider(saved.ocrProvider)
@@ -70,6 +74,8 @@ export async function savePersisted(): Promise<void> {
       editorFontSize: settings.editorFontSize,
       recentFiles: settings.recentFiles,
       screenshotDir: settings.screenshotDir,
+      tabs: settings.tabs.map((t) => t.path),
+      currentPath: settings.currentPath,
       ocrEngine: settings.ocrEngine,
       ocrProvider: settings.ocrProvider,
       ocrApiKey: settings.ocrApiKey,

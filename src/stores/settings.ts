@@ -19,6 +19,7 @@ interface SettingsState {
   recentFiles: string[]
   currentPath: string | null
   dirty: boolean
+  tabs: { path: string; dirty: boolean }[]
   screenshotDir: string
   ocrEngine: 'local' | 'cloud'
   ocrProvider: 'baidu' | 'ali' | 'tencent'
@@ -44,6 +45,7 @@ export const useSettingsStore = defineStore('settings', {
     recentFiles: [],
     currentPath: null,
     dirty: false,
+    tabs: [],
     screenshotDir: '',
     ocrEngine: 'local',
     ocrProvider: 'baidu',
@@ -100,11 +102,38 @@ export const useSettingsStore = defineStore('settings', {
       this.recentFiles = []
     },
     setCurrentPath(p: string | null) {
+      const cur = this.tabs.find((t) => t.path === this.currentPath)
+      if (cur) cur.dirty = this.dirty
       this.currentPath = p
-      if (p) this.addRecent(p)
+      if (p) {
+        this.addRecent(p)
+        let tab = this.tabs.find((t) => t.path === p)
+        if (!tab) {
+          tab = { path: p, dirty: false }
+          this.tabs.push(tab)
+        }
+        this.dirty = tab.dirty
+      } else {
+        this.dirty = false
+      }
+    },
+    switchTab(path: string) {
+      if (path !== this.currentPath) this.setCurrentPath(path)
+    },
+    closeTab(path: string) {
+      const idx = this.tabs.findIndex((t) => t.path === path)
+      if (idx === -1) return
+      this.tabs.splice(idx, 1)
+      if (this.currentPath === path) {
+        const next = this.tabs[idx] || this.tabs[idx - 1]
+        this.currentPath = null
+        this.setCurrentPath(next ? next.path : null)
+      }
     },
     setDirty(d: boolean) {
       this.dirty = d
+      const tab = this.tabs.find((t) => t.path === this.currentPath)
+      if (tab) tab.dirty = d
     },
     setScreenshotDir(d: string) {
       this.screenshotDir = d

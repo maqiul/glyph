@@ -11,7 +11,22 @@ import { savePersisted } from '../../stores/persistent'
 const { t } = useI18n()
 const settings = useSettingsStore()
 const errorMessage = ref<string | null>(null)
-const readerRef = ref<InstanceType<typeof Reader> | null>(null)
+const readerRefs = ref<Record<string, InstanceType<typeof Reader> | null>>({})
+function setReaderRef(path: string, el: unknown) {
+  readerRefs.value[path] = el as InstanceType<typeof Reader> | null
+}
+function currentReader() {
+  return settings.currentPath ? readerRefs.value[settings.currentPath] : null
+}
+function baseName(p: string) {
+  return p.split(/[/\\]/).pop() || p
+}
+function closeTab(path: string) {
+  const tab = settings.tabs.find((t) => t.path === path)
+  if (tab?.dirty && !confirm(t('confirm.discard'))) return
+  settings.closeTab(path)
+  savePersisted()
+}
 const showRecent = ref(false)
 const showMdSettings = ref(false)
 const showExport = ref(false)
@@ -75,7 +90,7 @@ async function saveFile() {
     await saveAs()
     return
   }
-  await readerRef.value?.save()
+  await currentReader()?.save()
 }
 
 async function saveAs() {
@@ -87,7 +102,7 @@ async function saveAs() {
     })
     if (!target) return
     settings.setCurrentPath(target)
-    await readerRef.value?.save()
+    await currentReader()?.save()
   } catch (e) {
     errorMessage.value = t('errors.saveAsFailed', { e: String(e) })
   }
@@ -133,7 +148,7 @@ function b64FromUtf8(str: string): string {
 }
 
 async function exportHtml() {
-  const body = readerRef.value?.getHtml?.()
+  const body = currentReader()?.getHtml?.()
   if (!body) return
   const name = (currentTitle.value || 'document').replace(/\.md$/i, '') + '.html'
   const out = await save({ defaultPath: name, filters: [{ name: 'HTML', extensions: ['html'] }] })
@@ -196,9 +211,17 @@ watch(
   (text) => {
     if (!text) return
     nextTick(() => {
-      readerRef.value?.insertAtCursor(text)
+      currentReader()?.insertAtCursor(text)
       settings.setPendingInsert('')
     })
+  },
+)
+
+// 切换激活 tab 时，把文件监听指向当前文件
+watch(
+  () => settings.currentPath,
+  (p) => {
+    if (p) invoke('watch_file', { path: p }).catch(() => {})
   },
 )
 
@@ -223,7 +246,7 @@ function handleKeydown(e: KeyboardEvent) {
     cycleMode()
   } else if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'f') {
     e.preventDefault()
-    readerRef.value?.openSearch()
+    currentReader()?.openSearch()
   } else if (e.key === 'F11') {
     e.preventDefault()
     toggleImmersive()
@@ -370,9 +393,31 @@ onUnmounted(() => {
       </div>
     </header>
 
+    <div v-if="settings.tabs.length" class="tab-bar">
+      <div
+        v-for="tab in settings.tabs"
+        :key="tab.path"
+        class="tab"
+        :class="{ active: tab.path === settings.currentPath }"
+        @click="settings.switchTab(tab.path); savePersisted()"
+      >
+        <span class="tab-name">{{ baseName(tab.path) }}</span>
+        <span v-if="tab.dirty" class="tab-dirty">●</span>
+        <button class="tab-close" @click.stop="closeTab(tab.path)">✕</button>
+      </div>
+      <button class="tab-new" @click="newFile" title="Ctrl+N">+</button>
+    </div>
+
     <main class="md-main" @click="closeMenus">
-      <Reader v-if="settings.currentPath" ref="readerRef" :path="settings.currentPath" />
-      <div v-else class="empty-state">
+      <Reader
+        v-for="tab in settings.tabs"
+        :key="tab.path"
+        :ref="(el) => setReaderRef(tab.path, el)"
+        :path="tab.path"
+        :active="tab.path === settings.currentPath"
+        v-show="tab.path === settings.currentPath"
+      />
+      <div v-if="!settings.tabs.length" class="empty-state">
         <div class="empty-icon">
           <svg
             width="72"
@@ -825,5 +870,80 @@ onUnmounted(() => {
   background: var(--accent);
   color: var(--accent-fg);
   border-color: var(--accent);
+}
+
+.tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+.tab:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  background: var(--surface);
+}
+
+.tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-dirty {
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.tab-close {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 2px;
+  border-radius: 3px;
+}
+
+.tab-close:hover {
+  background: var(--error);
+  color: #fff;
+}
+
+.tab-new {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.tab-new:hover {
+  background: var(--surface-hover);
+  color: var(--text);
 }
 </style>
