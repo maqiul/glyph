@@ -355,7 +355,8 @@ export default {
     saved: 'Saved to: {out} ({size})',
   },
   ftp: {
-    title: 'FTP Client',
+    title: 'FTP / SFTP Client',
+    protocol: 'Protocol',
     host: 'Host',
     port: 'Port',
     user: 'Username',

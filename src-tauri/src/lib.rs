@@ -36,7 +36,7 @@ pub mod ocr;
 pub mod ocr_cloud;
 pub mod pdf;
 pub mod screenshot;
-// pub mod sftp; // WIP: libssh2 已验证可编译，ssh2 API 待下轮修正后启用
+pub mod sftp;
 pub mod watch;
 
 /// 全局唤起快捷键（app 在后台/最小化时把它带回前台）
@@ -94,11 +94,20 @@ pub fn run() {
             commands::ftp_list,
             commands::ftp_download,
             commands::ftp_upload,
+            commands::sftp_connect,
+            commands::sftp_disconnect,
+            commands::sftp_list,
+            commands::sftp_download,
+            commands::sftp_upload,
+            commands::sftp_delete,
+            commands::sftp_rename,
+            commands::sftp_mkdir,
         ])
         .setup(|app| {
             log::info!("Glyph 启动 v{}", env!("CARGO_PKG_VERSION"));
             app.manage(watch::FileWatcher::new());
             app.manage(ftp::FtpSession::new());
+            app.manage(sftp::SftpSession::new());
 
             // 全局快捷键：唤起主窗（Ctrl+Shift+G）
             if let Err(e) =

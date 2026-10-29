@@ -354,7 +354,8 @@ export default {
     saved: '已保存到：{out}（{size}）',
   },
   ftp: {
-    title: 'FTP 客户端',
+    title: 'FTP / SFTP 客户端',
+    protocol: '协议',
     host: '主机',
     port: '端口',
     user: '用户名',

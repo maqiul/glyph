@@ -7,7 +7,8 @@ import { open, save } from '@tauri-apps/plugin-dialog'
 interface FtpEntry {
   name: string
   size: number
-  modified: string
+  modified?: string
+  mtime?: number
   is_dir: boolean
 }
 
@@ -17,6 +18,10 @@ const port = ref(21)
 const user = ref('')
 const pass = ref('')
 const passive = ref(true)
+const protocol = ref<'ftp' | 'sftp'>('ftp')
+function cmd(name: string) {
+  return protocol.value + '_' + name
+}
 const connected = ref(false)
 const cwd = ref('/')
 const entries = ref<FtpEntry[]>([])
@@ -31,15 +36,23 @@ function fmtSize(n: number) {
   if (n < 1048576) return (n / 1024).toFixed(1) + ' KB'
   return (n / 1048576).toFixed(1) + ' MB'
 }
+function fmtMtime(s?: number) {
+  if (!s) return ''
+  return new Date(s * 1000).toLocaleString()
+}
 async function doList(path: string) {
-  entries.value = await invoke<FtpEntry[]>('ftp_list', { path })
+  entries.value = await invoke<FtpEntry[]>(cmd('list'), { path })
   cwd.value = path
 }
 async function connect() {
   busy.value = true
   msg.value = ''
   try {
-    await invoke('ftp_connect', { host: host.value, port: port.value, user: user.value, pass: pass.value, passive: passive.value })
+    if (protocol.value === 'sftp') {
+      await invoke('sftp_connect', { host: host.value, port: port.value, user: user.value, pass: pass.value })
+    } else {
+      await invoke('ftp_connect', { host: host.value, port: port.value, user: user.value, pass: pass.value, passive: passive.value })
+    }
     connected.value = true
     await doList('/')
   } catch (e) {
@@ -49,7 +62,7 @@ async function connect() {
   }
 }
 async function disconnect() {
-  await invoke('ftp_disconnect')
+  await invoke(cmd('disconnect'))
   connected.value = false
   entries.value = []
   msg.value = ''
@@ -96,7 +109,7 @@ async function download(entry: FtpEntry) {
   busy.value = true
   msg.value = ''
   try {
-    await invoke('ftp_download', { remote: rpath(entry.name), local })
+    await invoke(cmd('download'), { remote: rpath(entry.name), local })
     msg.value = t('ftp.done', { p: local })
   } catch (e) {
     msg.value = t('ftp.failed', { e: String(e) })
@@ -113,7 +126,7 @@ async function upload() {
   busy.value = true
   msg.value = ''
   try {
-    await invoke('ftp_upload', { local, remote: rpath(name) })
+    await invoke(cmd('upload'), { local, remote: rpath(name) })
     await doList(cwd.value)
     msg.value = t('ftp.uploaded', { n: name })
   } catch (e) {
@@ -126,7 +139,7 @@ async function removeEntry(entry: FtpEntry) {
   if (!confirm(t('ftp.confirmDelete', { n: entry.name }))) return
   busy.value = true
   try {
-    await invoke('ftp_delete', { path: rpath(entry.name) })
+    await invoke(cmd('delete'), { path: rpath(entry.name) })
     await doList(cwd.value)
   } catch (e) {
     msg.value = t('ftp.failed', { e: String(e) })
@@ -139,7 +152,7 @@ async function renameEntry(entry: FtpEntry) {
   if (!nn || nn === entry.name) return
   busy.value = true
   try {
-    await invoke('ftp_rename', { from: rpath(entry.name), to: rpath(nn) })
+    await invoke(cmd('rename'), { from: rpath(entry.name), to: rpath(nn) })
     await doList(cwd.value)
   } catch (e) {
     msg.value = t('ftp.failed', { e: String(e) })
@@ -152,7 +165,7 @@ async function newFolder() {
   if (!name) return
   busy.value = true
   try {
-    await invoke('ftp_mkdir', { path: rpath(name) })
+    await invoke(cmd('mkdir'), { path: rpath(name) })
     await doList(cwd.value)
   } catch (e) {
     msg.value = t('ftp.failed', { e: String(e) })
@@ -168,11 +181,16 @@ async function newFolder() {
     <div v-if="!connected" class="ftp-connect">
       <h1>{{ t('ftp.title') }}</h1>
       <div class="ftp-form">
+        <label>{{ t('ftp.protocol') }}</label>
+        <div class="seg">
+          <button :class="{ active: protocol === 'ftp' }" @click="protocol = 'ftp'">FTP</button>
+          <button :class="{ active: protocol === 'sftp' }" @click="protocol = 'sftp'">SFTP</button>
+        </div>
         <label>{{ t('ftp.host') }}<input v-model="host" placeholder="ftp.example.com" /></label>
         <label>{{ t('ftp.port') }}<input v-model.number="port" type="number" /></label>
         <label>{{ t('ftp.user') }}<input v-model="user" /></label>
         <label>{{ t('ftp.pass') }}<input v-model="pass" type="password" /></label>
-        <label class="ftp-passive"><input v-model="passive" type="checkbox" /> {{ t('ftp.passive') }}</label>
+        <label v-if="protocol === 'ftp'" class="ftp-passive"><input v-model="passive" type="checkbox" /> {{ t('ftp.passive') }}</label>
       </div>
       <button class="btn btn-primary" :disabled="busy || !host" @click="connect">
         {{ busy ? t('ftp.connecting') : t('ftp.connect') }}
@@ -205,7 +223,7 @@ async function newFolder() {
           <tr v-for="e in entries" :key="e.name" @dblclick="enter(e)">
             <td class="fname">{{ e.is_dir ? '📁' : '📄' }} {{ e.name }}</td>
             <td class="num">{{ e.is_dir ? '—' : fmtSize(e.size) }}</td>
-            <td class="mtime">{{ e.modified }}</td>
+            <td class="mtime">{{ e.modified ?? fmtMtime(e.mtime) }}</td>
             <td class="ftp-actions">
               <button v-if="!e.is_dir" class="btn btn-small" :disabled="busy" @click="download(e)">{{ t('ftp.download') }}</button>
               <button class="btn btn-small" :disabled="busy" @click="renameEntry(e)">{{ t('ftp.rename') }}</button>

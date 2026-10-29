@@ -374,6 +374,69 @@ pub fn ftp_mkdir(sess: State<crate::ftp::FtpSession>, path: String) -> Result<()
     crate::ftp::mkdir(&sess, path)
 }
 
+// ---- SFTP ----
+
+#[command]
+pub fn sftp_connect(
+    sess: State<crate::sftp::SftpSession>,
+    host: String,
+    port: u16,
+    user: String,
+    pass: String,
+) -> Result<(), GlyphError> {
+    crate::sftp::connect(&sess, host, port, user, pass)
+}
+
+#[command]
+pub fn sftp_disconnect(sess: State<crate::sftp::SftpSession>) {
+    crate::sftp::disconnect(&sess);
+}
+
+#[command]
+pub fn sftp_list(
+    sess: State<crate::sftp::SftpSession>,
+    path: String,
+) -> Result<Vec<crate::sftp::SftpEntry>, GlyphError> {
+    crate::sftp::list(&sess, path)
+}
+
+#[command]
+pub fn sftp_download(
+    sess: State<crate::sftp::SftpSession>,
+    remote: String,
+    local: String,
+) -> Result<(), GlyphError> {
+    crate::sftp::download(&sess, remote, local)
+}
+
+#[command]
+pub fn sftp_upload(
+    sess: State<crate::sftp::SftpSession>,
+    local: String,
+    remote: String,
+) -> Result<(), GlyphError> {
+    crate::sftp::upload(&sess, local, remote)
+}
+
+#[command]
+pub fn sftp_delete(sess: State<crate::sftp::SftpSession>, path: String) -> Result<(), GlyphError> {
+    crate::sftp::delete(&sess, path)
+}
+
+#[command]
+pub fn sftp_rename(
+    sess: State<crate::sftp::SftpSession>,
+    from: String,
+    to: String,
+) -> Result<(), GlyphError> {
+    crate::sftp::rename(&sess, from, to)
+}
+
+#[command]
+pub fn sftp_mkdir(sess: State<crate::sftp::SftpSession>, path: String) -> Result<(), GlyphError> {
+    crate::sftp::mkdir(&sess, path)
+}
+
 #[command]
 pub fn ftp_disconnect(sess: State<crate::ftp::FtpSession>) {
     crate::ftp::disconnect(&sess);
