@@ -36,6 +36,7 @@ pub mod ocr;
 pub mod ocr_cloud;
 pub mod pdf;
 pub mod screenshot;
+// pub mod sftp; // WIP: libssh2 已验证可编译，ssh2 API 待下轮修正后启用
 pub mod watch;
 
 /// 全局唤起快捷键（app 在后台/最小化时把它带回前台）
