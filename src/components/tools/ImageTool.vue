@@ -206,8 +206,9 @@ async function onFile(file: File) {
 async function loadPath(path: string) {
   try {
     const bytes = await readFile(path)
-    const dataUrl = `data:${mimeOf(path)};base64,${toBase64(bytes)}`
-    await applySrc(dataUrl, path.split(/[\\/]/).pop() || path)
+    const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes as unknown as ArrayBuffer)
+    const blob = new Blob([u8], { type: mimeOf(path) })
+    await applySrc(URL.createObjectURL(blob), path.split(/[\\/]/).pop() || path)
   } catch (e) {
     error.value = String(e)
   }
