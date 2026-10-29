@@ -381,6 +381,6 @@ export default {
     confirmDelete: '确定删除 {n}？此操作不可撤销。',
     renamePrompt: '新名称',
     mkdirPrompt: '新目录名',
-    note: '仅支持 FTP（明文）。SFTP/FTPS 需后端加密依赖，暂未接入。',
+    note: '支持 FTP 与 SFTP。FTP 为明文传输，敏感场景建议用 SFTP。',
   },
 }

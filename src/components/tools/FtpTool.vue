@@ -179,24 +179,28 @@ async function newFolder() {
   <div class="ftp-tool">
     <!-- 连接表单 -->
     <div v-if="!connected" class="ftp-connect">
-      <h1>{{ t('ftp.title') }}</h1>
-      <div class="ftp-form">
-        <label>{{ t('ftp.protocol') }}</label>
-        <div class="seg">
-          <button :class="{ active: protocol === 'ftp' }" @click="protocol = 'ftp'">FTP</button>
-          <button :class="{ active: protocol === 'sftp' }" @click="protocol = 'sftp'">SFTP</button>
+      <div class="ftp-card">
+        <h1>{{ t('ftp.title') }}</h1>
+        <div class="ftp-row">
+          <span class="ftp-label">{{ t('ftp.protocol') }}</span>
+          <div class="seg">
+            <button :class="{ active: protocol === 'ftp' }" @click="protocol = 'ftp'">FTP</button>
+            <button :class="{ active: protocol === 'sftp' }" @click="protocol = 'sftp'">SFTP</button>
+          </div>
         </div>
-        <label>{{ t('ftp.host') }}<input v-model="host" placeholder="ftp.example.com" /></label>
-        <label>{{ t('ftp.port') }}<input v-model.number="port" type="number" /></label>
-        <label>{{ t('ftp.user') }}<input v-model="user" /></label>
-        <label>{{ t('ftp.pass') }}<input v-model="pass" type="password" /></label>
-        <label v-if="protocol === 'ftp'" class="ftp-passive"><input v-model="passive" type="checkbox" /> {{ t('ftp.passive') }}</label>
+        <label class="ftp-field"><span>{{ t('ftp.host') }}</span><input v-model="host" placeholder="ftp.example.com" /></label>
+        <div class="ftp-row2">
+          <label class="ftp-field"><span>{{ t('ftp.port') }}</span><input v-model.number="port" type="number" /></label>
+          <label v-if="protocol === 'ftp'" class="ftp-check"><input v-model="passive" type="checkbox" /> {{ t('ftp.passive') }}</label>
+        </div>
+        <label class="ftp-field"><span>{{ t('ftp.user') }}</span><input v-model="user" /></label>
+        <label class="ftp-field"><span>{{ t('ftp.pass') }}</span><input v-model="pass" type="password" /></label>
+        <button class="btn btn-primary ftp-go" :disabled="busy || !host" @click="connect">
+          {{ busy ? t('ftp.connecting') : t('ftp.connect') }}
+        </button>
+        <div v-if="msg" class="ftp-msg">⚠ {{ msg }}</div>
+        <p class="ftp-note">{{ t('ftp.note') }}</p>
       </div>
-      <button class="btn btn-primary" :disabled="busy || !host" @click="connect">
-        {{ busy ? t('ftp.connecting') : t('ftp.connect') }}
-      </button>
-      <div v-if="msg" class="ftp-msg">⚠ {{ msg }}</div>
-      <p class="ftp-note">{{ t('ftp.note') }}</p>
     </div>
 
     <!-- 文件浏览 -->
@@ -247,45 +251,85 @@ async function newFolder() {
 }
 
 .ftp-connect {
-  max-width: 460px;
-  margin: 40px auto;
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  justify-content: center;
+  padding: 40px 20px;
 }
 
-.ftp-connect h1 {
-  font-size: 22px;
-  margin: 0;
+.ftp-card {
+  width: 400px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.ftp-card h1 {
+  font-size: 20px;
+  margin: 0 0 4px;
   color: var(--text);
+  font-weight: 700;
 }
 
-.ftp-form {
+.ftp-row {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.ftp-form label {
+.ftp-row2 {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.ftp-label {
   font-size: 12px;
   color: var(--text-muted);
 }
 
-.ftp-form input {
-  padding: 8px 12px;
+.ftp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.ftp-field input {
+  padding: 9px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--bg);
   color: var(--text);
   font-size: 13px;
 }
 
-.ftp-form input:focus {
+.ftp-field input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+.ftp-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding-bottom: 10px;
+  white-space: nowrap;
+}
+
+.ftp-go {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
 }
 
 .ftp-note {

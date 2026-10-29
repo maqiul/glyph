@@ -382,6 +382,6 @@ export default {
     confirmDelete: 'Delete {n}? This cannot be undone.',
     renamePrompt: 'New name',
     mkdirPrompt: 'Folder name',
-    note: 'FTP only (plaintext). SFTP/FTPS need encrypted backend deps, not yet added.',
+    note: 'Supports FTP and SFTP. FTP is plaintext; prefer SFTP for sensitive transfers.',
   },
 }
