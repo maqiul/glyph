@@ -373,6 +373,13 @@ export default {
     done: '已下载到 {p}',
     uploaded: '已上传 {n}',
     failed: '操作失败：{e}',
+    passive: '被动模式 (PASV)',
+    mkdir: '新建目录',
+    rename: '重命名',
+    delete: '删除',
+    confirmDelete: '确定删除 {n}？此操作不可撤销。',
+    renamePrompt: '新名称',
+    mkdirPrompt: '新目录名',
     note: '仅支持 FTP（明文）。SFTP/FTPS 需后端加密依赖，暂未接入。',
   },
 }

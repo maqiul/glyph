@@ -16,6 +16,7 @@ const host = ref('')
 const port = ref(21)
 const user = ref('')
 const pass = ref('')
+const passive = ref(true)
 const connected = ref(false)
 const cwd = ref('/')
 const entries = ref<FtpEntry[]>([])
@@ -38,7 +39,7 @@ async function connect() {
   busy.value = true
   msg.value = ''
   try {
-    await invoke('ftp_connect', { host: host.value, port: port.value, user: user.value, pass: pass.value })
+    await invoke('ftp_connect', { host: host.value, port: port.value, user: user.value, pass: pass.value, passive: passive.value })
     connected.value = true
     await doList('/')
   } catch (e) {
@@ -121,6 +122,44 @@ async function upload() {
     busy.value = false
   }
 }
+async function removeEntry(entry: FtpEntry) {
+  if (!confirm(t('ftp.confirmDelete', { n: entry.name }))) return
+  busy.value = true
+  try {
+    await invoke('ftp_delete', { path: rpath(entry.name) })
+    await doList(cwd.value)
+  } catch (e) {
+    msg.value = t('ftp.failed', { e: String(e) })
+  } finally {
+    busy.value = false
+  }
+}
+async function renameEntry(entry: FtpEntry) {
+  const nn = prompt(t('ftp.renamePrompt'), entry.name)
+  if (!nn || nn === entry.name) return
+  busy.value = true
+  try {
+    await invoke('ftp_rename', { from: rpath(entry.name), to: rpath(nn) })
+    await doList(cwd.value)
+  } catch (e) {
+    msg.value = t('ftp.failed', { e: String(e) })
+  } finally {
+    busy.value = false
+  }
+}
+async function newFolder() {
+  const name = prompt(t('ftp.mkdirPrompt'), 'new-folder')
+  if (!name) return
+  busy.value = true
+  try {
+    await invoke('ftp_mkdir', { path: rpath(name) })
+    await doList(cwd.value)
+  } catch (e) {
+    msg.value = t('ftp.failed', { e: String(e) })
+  } finally {
+    busy.value = false
+  }
+}
 </script>
 
 <template>
@@ -133,6 +172,7 @@ async function upload() {
         <label>{{ t('ftp.port') }}<input v-model.number="port" type="number" /></label>
         <label>{{ t('ftp.user') }}<input v-model="user" /></label>
         <label>{{ t('ftp.pass') }}<input v-model="pass" type="password" /></label>
+        <label class="ftp-passive"><input v-model="passive" type="checkbox" /> {{ t('ftp.passive') }}</label>
       </div>
       <button class="btn btn-primary" :disabled="busy || !host" @click="connect">
         {{ busy ? t('ftp.connecting') : t('ftp.connect') }}
@@ -147,6 +187,7 @@ async function upload() {
         <button class="btn" :disabled="cwd === '/' || busy" @click="up">↑ {{ t('ftp.parent') }}</button>
         <span class="ftp-cwd">{{ cwd }}</span>
         <button class="btn" :disabled="busy" @click="refresh">{{ t('ftp.refresh') }}</button>
+        <button class="btn" :disabled="busy" @click="newFolder">{{ t('ftp.mkdir') }}</button>
         <button class="btn btn-primary" :disabled="busy" @click="upload">{{ t('ftp.upload') }}</button>
         <button class="btn" @click="disconnect">{{ t('ftp.disconnect') }}</button>
       </div>
@@ -165,10 +206,10 @@ async function upload() {
             <td class="fname">{{ e.is_dir ? '📁' : '📄' }} {{ e.name }}</td>
             <td class="num">{{ e.is_dir ? '—' : fmtSize(e.size) }}</td>
             <td class="mtime">{{ e.modified }}</td>
-            <td>
-              <button v-if="!e.is_dir" class="btn btn-small" :disabled="busy" @click="download(e)">
-                {{ t('ftp.download') }}
-              </button>
+            <td class="ftp-actions">
+              <button v-if="!e.is_dir" class="btn btn-small" :disabled="busy" @click="download(e)">{{ t('ftp.download') }}</button>
+              <button class="btn btn-small" :disabled="busy" @click="renameEntry(e)">{{ t('ftp.rename') }}</button>
+              <button class="btn btn-small btn-danger" :disabled="busy" @click="removeEntry(e)">{{ t('ftp.delete') }}</button>
             </td>
           </tr>
           <tr v-if="!entries.length && !busy">
@@ -346,5 +387,23 @@ async function upload() {
   text-align: center;
   color: var(--text-muted);
   padding: 24px;
+}
+
+.ftp-passive {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.ftp-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.btn-danger:hover {
+  background: var(--error);
+  border-color: var(--error);
+  color: #fff;
 }
 </style>

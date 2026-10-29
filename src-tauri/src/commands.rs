@@ -350,8 +350,28 @@ pub fn ftp_connect(
     port: u16,
     user: String,
     pass: String,
+    passive: bool,
 ) -> Result<(), GlyphError> {
-    crate::ftp::connect(&sess, host, port, user, pass)
+    crate::ftp::connect(&sess, host, port, user, pass, passive)
+}
+
+#[command]
+pub fn ftp_delete(sess: State<crate::ftp::FtpSession>, path: String) -> Result<(), GlyphError> {
+    crate::ftp::delete(&sess, path)
+}
+
+#[command]
+pub fn ftp_rename(
+    sess: State<crate::ftp::FtpSession>,
+    from: String,
+    to: String,
+) -> Result<(), GlyphError> {
+    crate::ftp::rename(&sess, from, to)
+}
+
+#[command]
+pub fn ftp_mkdir(sess: State<crate::ftp::FtpSession>, path: String) -> Result<(), GlyphError> {
+    crate::ftp::mkdir(&sess, path)
 }
 
 #[command]

@@ -7,7 +7,7 @@ use std::sync::Mutex;
 
 use serde::Serialize;
 use suppaftp::types::FileType;
-use suppaftp::FtpStream;
+use suppaftp::{FtpStream, Mode};
 use tauri::State;
 
 use crate::error::GlyphError;
@@ -42,11 +42,41 @@ pub fn connect(
     port: u16,
     user: String,
     pass: String,
+    passive: bool,
 ) -> Result<(), GlyphError> {
     let mut stream = FtpStream::connect((host.as_str(), port)).map_err(e)?;
     stream.login(&user, &pass).map_err(e)?;
+    // 被动(PASV)对防火墙/NAT 友好，是绝大多数场景的正确选择；主动(PORT)少数老服务器需要
+    stream.set_mode(if passive { Mode::Passive } else { Mode::Active });
     let _ = stream.transfer_type(FileType::Binary);
     *sess.stream.lock().unwrap() = Some(stream);
+    Ok(())
+}
+
+pub fn delete(sess: &State<FtpSession>, path: String) -> Result<(), GlyphError> {
+    let mut guard = sess.stream.lock().unwrap();
+    let stream = guard
+        .as_mut()
+        .ok_or_else(|| GlyphError::Internal("未连接 FTP".into()))?;
+    stream.rm(&path).map_err(e)?;
+    Ok(())
+}
+
+pub fn rename(sess: &State<FtpSession>, from: String, to: String) -> Result<(), GlyphError> {
+    let mut guard = sess.stream.lock().unwrap();
+    let stream = guard
+        .as_mut()
+        .ok_or_else(|| GlyphError::Internal("未连接 FTP".into()))?;
+    stream.rename(&from, &to).map_err(e)?;
+    Ok(())
+}
+
+pub fn mkdir(sess: &State<FtpSession>, path: String) -> Result<(), GlyphError> {
+    let mut guard = sess.stream.lock().unwrap();
+    let stream = guard
+        .as_mut()
+        .ok_or_else(|| GlyphError::Internal("未连接 FTP".into()))?;
+    stream.mkdir(&path).map_err(e)?;
     Ok(())
 }
 

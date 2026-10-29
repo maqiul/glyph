@@ -374,6 +374,13 @@ export default {
     done: 'Downloaded to {p}',
     uploaded: 'Uploaded {n}',
     failed: 'Operation failed: {e}',
+    passive: 'Passive mode (PASV)',
+    mkdir: 'New folder',
+    rename: 'Rename',
+    delete: 'Delete',
+    confirmDelete: 'Delete {n}? This cannot be undone.',
+    renamePrompt: 'New name',
+    mkdirPrompt: 'Folder name',
     note: 'FTP only (plaintext). SFTP/FTPS need encrypted backend deps, not yet added.',
   },
 }
