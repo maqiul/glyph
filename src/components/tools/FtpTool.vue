@@ -181,13 +181,13 @@ async function newFolder() {
     <div v-if="!connected" class="ftp-connect">
       <div class="ftp-card">
         <h1>{{ t('ftp.title') }}</h1>
-        <div class="ftp-row">
-          <span class="ftp-label">{{ t('ftp.protocol') }}</span>
-          <div class="seg">
+        <label class="ftp-field">
+          <span>{{ t('ftp.protocol') }}</span>
+          <div class="seg seg-full">
             <button :class="{ active: protocol === 'ftp' }" @click="protocol = 'ftp'">FTP</button>
             <button :class="{ active: protocol === 'sftp' }" @click="protocol = 'sftp'">SFTP</button>
           </div>
-        </div>
+        </label>
         <label class="ftp-field"><span>{{ t('ftp.host') }}</span><input v-model="host" placeholder="ftp.example.com" /></label>
         <div class="ftp-row2">
           <label class="ftp-field"><span>{{ t('ftp.port') }}</span><input v-model.number="port" type="number" /></label>
@@ -467,5 +467,48 @@ async function newFolder() {
   background: var(--error);
   border-color: var(--error);
   color: #fff;
+}
+
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.seg button {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.seg button + button {
+  border-left: 1px solid var(--border);
+}
+
+.seg button:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.seg button.active {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.seg-full {
+  width: 100%;
+}
+
+.seg-full button {
+  flex: 1;
+  padding: 9px 0;
+  text-align: center;
 }
 </style>
